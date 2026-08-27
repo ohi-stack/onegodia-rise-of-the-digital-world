@@ -12,6 +12,7 @@ export type NavigationTab =
   | 'missions'
   | 'inventory'
   | 'developers'
+  | 'community'
   | 'web-doc'
   | 'players'
   | 'compliance';
