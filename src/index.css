@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    background-color: #050608;
+    color: #cbd5e1;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  /* High Density custom scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #090a0f;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #1e2230;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #2b3248;
+  }
+}
+
+/* Tactical HUD Mission Marker Animations */
+@keyframes tactical-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.6);
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 0.9;
+    box-shadow: 0 0 14px 3px rgba(59, 130, 246, 0.45);
+  }
+}
+
+@keyframes tactical-marker-ring {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.95;
+    border-color: rgba(59, 130, 246, 0.9);
+  }
+  60% {
+    transform: scale(1.75);
+    opacity: 0;
+    border-color: rgba(59, 130, 246, 0);
+  }
+  100% {
+    transform: scale(0.85);
+    opacity: 0;
+    border-color: rgba(59, 130, 246, 0);
+  }
+}
+
+@keyframes objective-card-pulse {
+  0%, 100% {
+    border-color: rgba(59, 130, 246, 0.4);
+    box-shadow: 0 0 0 rgba(59, 130, 246, 0);
+  }
+  50% {
+    border-color: rgba(96, 165, 250, 0.85);
+    box-shadow: 0 0 16px rgba(59, 130, 246, 0.25);
+  }
+}
+
+@keyframes beacon-dot-pulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 2px rgba(59, 130, 246, 0.6));
+  }
+  50% {
+    transform: scale(1.25);
+    filter: drop-shadow(0 0 8px rgba(59, 130, 246, 1));
+  }
+}
+
+.animate-tactical-pulse {
+  animation: tactical-pulse 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-tactical-marker-ring {
+  animation: tactical-marker-ring 2s cubic-bezier(0.1, 0.2, 0.3, 1) infinite;
+}
+
+.animate-objective-card-pulse {
+  animation: objective-card-pulse 2.6s ease-in-out infinite;
+}
+
+.animate-beacon-dot {
+  animation: beacon-dot-pulse 1.8s ease-in-out infinite;
+}
