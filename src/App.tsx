@@ -105,7 +105,7 @@ export default function App() {
           <InventoryView progress={progress} setProgress={setProgress} />
         )}
 
-        {activeTab === 'developers' && <DevelopersView setActiveTab={setActiveTab} />}
+        {activeTab === 'developers' && <DevelopersView />}
 
         {activeTab === 'community' && <CommunityView setActiveTab={setActiveTab} />}
 
