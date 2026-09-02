@@ -92,39 +92,42 @@ export const GameplayGridView: React.FC = () => {
     <div className="space-y-6 py-2 font-sans">
       
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 rounded-xl bg-[#0c0e14] border border-[#1e2230]">
-        <div>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 rounded-xl bg-[#090b10] border border-cyan-900 shadow-[0_0_20px_rgba(0,255,255,0.05)] relative overflow-hidden">
+        {/* Animated Background */}
+        <div className="absolute inset-0 gamer-grid opacity-20 z-0 pointer-events-none"></div>
+
+        <div className="relative z-10">
           <div className="flex items-center gap-2 mb-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
-            <span className="text-[11px] font-mono text-blue-400 font-bold uppercase tracking-wider">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_10px_#0ff]"></span>
+            <span className="text-[11px] font-mono text-cyan-400 font-bold uppercase tracking-wider">
               SYSTEM ARCHITECTURE & ROADMAP
             </span>
           </div>
-          <h1 className="text-lg sm:text-xl font-bold text-white">
+          <h1 className="text-lg sm:text-xl font-bold text-white uppercase glitch" data-text="Onegodia Gameplay Grid (18 Core Modules)">
             Onegodia Gameplay Grid (18 Core Modules)
           </h1>
-          <p className="text-xs font-mono text-slate-400 mt-0.5">
+          <p className="text-xs font-mono text-cyan-500/80 mt-0.5">
             Categorized by live prototype status, future Unreal Engine phase, and regulatory compliance boundaries.
           </p>
         </div>
 
         {/* Search Bar */}
-        <div className="relative min-w-[220px]">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+        <div className="relative min-w-[220px] z-10">
+          <Search className="w-3.5 h-3.5 text-cyan-500 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             id="search-gameplay-grid"
             type="text"
             placeholder="Filter modules..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#11131a] border border-[#1e2230] rounded-lg pl-8 pr-3 py-1.5 text-xs font-mono text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500/60 transition-colors"
+            className="w-full bg-black/60 border border-cyan-900/50 rounded-lg pl-8 pr-3 py-1.5 text-xs font-mono text-cyan-300 placeholder-cyan-700/50 focus:outline-none focus:border-cyan-400 focus:shadow-[0_0_15px_rgba(0,255,255,0.3)] transition-all"
           />
         </div>
       </div>
 
       {/* Filter Tabs */}
       <div className="flex flex-wrap gap-1.5 items-center">
-        <Filter className="w-3 h-3 text-slate-500 mr-1 hidden sm:inline" />
+        <Filter className="w-3 h-3 text-cyan-500 mr-1 hidden sm:inline" />
         {statusCategories.map((cat) => (
           <button
             key={cat.value}
@@ -135,8 +138,8 @@ export const GameplayGridView: React.FC = () => {
             }}
             className={`px-2.5 py-1 rounded text-xs font-mono font-medium transition-all ${
               filter === cat.value
-                ? 'bg-blue-600 text-white font-bold shadow-sm shadow-blue-500/25'
-                : 'bg-[#11131a] text-slate-400 hover:text-slate-200 hover:bg-[#161821] border border-[#1e2230]'
+                ? 'bg-cyan-500 text-black font-bold shadow-[0_0_15px_#0ff]'
+                : 'bg-black text-cyan-600 hover:text-cyan-300 hover:bg-cyan-950/40 border border-cyan-900'
             }`}
           >
             {cat.label}
@@ -156,17 +159,19 @@ export const GameplayGridView: React.FC = () => {
                 sound.playClick();
                 setSelectedModule(module);
               }}
-              className="group p-4 rounded-xl bg-[#0c0e14] border border-[#1e2230] hover:border-blue-500/50 hover:bg-[#11131a] transition-all cursor-pointer flex flex-col justify-between space-y-3 shadow-md"
+              className="group p-4 rounded-xl bg-[#090b10] border border-cyan-900 hover:border-cyan-400 hover:bg-black transition-all cursor-pointer flex flex-col justify-between space-y-3 shadow-md hover:shadow-[0_0_20px_rgba(0,255,255,0.2)] relative overflow-hidden"
             >
-              <div className="space-y-2.5">
+              <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/0 via-transparent to-purple-500/0 group-hover:from-cyan-500/10 group-hover:to-purple-500/10 transition-colors z-0"></div>
+
+              <div className="space-y-2.5 relative z-10">
                 
                 {/* Header row */}
                 <div className="flex items-start justify-between gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-[#11131a] border border-[#1e2230] flex items-center justify-center text-blue-400 group-hover:border-blue-400 transition-colors">
+                  <div className="w-8 h-8 rounded-lg bg-black border border-cyan-900 flex items-center justify-center text-cyan-500 group-hover:border-cyan-400 group-hover:shadow-[0_0_10px_#0ff] transition-all">
                     <Icon className="w-4 h-4" />
                   </div>
                   <div className="flex flex-col items-end gap-0.5">
-                    <span className="font-mono text-[10px] text-slate-500">
+                    <span className="font-mono text-[10px] text-cyan-600">
                       Module #{module.number.toString().padStart(2, '0')}
                     </span>
                     <span className={`px-1.5 py-0.2 rounded text-[10px] font-mono font-semibold border ${getStatusBadgeStyle(module.status)}`}>
@@ -177,10 +182,10 @@ export const GameplayGridView: React.FC = () => {
 
                 {/* Title and category */}
                 <div>
-                  <div className="text-[10px] font-mono text-blue-400 uppercase font-semibold">
+                  <div className="text-[10px] font-mono text-purple-400 uppercase font-semibold tracking-widest">
                     {module.category}
                   </div>
-                  <h3 className="text-sm font-bold text-slate-100 group-hover:text-blue-300 transition-colors font-sans">
+                  <h3 className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors font-sans uppercase">
                     {module.title}
                   </h3>
                 </div>
@@ -191,15 +196,15 @@ export const GameplayGridView: React.FC = () => {
                 </p>
 
                 {/* V1 Status pill */}
-                <div className="p-2 rounded-lg bg-[#11131a] border border-[#1e2230] text-[11px] font-mono text-slate-300 space-y-0.5">
-                  <div className="text-[9px] text-blue-400 uppercase font-bold">V1 Status:</div>
-                  <div className="leading-snug text-slate-300">{module.v1Status}</div>
+                <div className="p-2 rounded-lg bg-black/60 border border-cyan-900/50 text-[11px] font-mono text-cyan-300 space-y-0.5 group-hover:border-cyan-500/50 transition-colors">
+                  <div className="text-[9px] text-cyan-500 uppercase font-bold tracking-wider">V1 Status:</div>
+                  <div className="leading-snug">{module.v1Status}</div>
                 </div>
               </div>
 
               {/* Compliance footer if applicable */}
               {module.complianceNote && (
-                <div className="flex items-center gap-1.5 text-[10px] font-mono text-amber-400/90 pt-1.5 border-t border-[#1e2230]">
+                <div className="flex items-center gap-1.5 text-[10px] font-mono text-yellow-500/90 pt-1.5 border-t border-yellow-900/50 relative z-10">
                   <ShieldAlert className="w-3 h-3 shrink-0" />
                   <span className="truncate">{module.complianceNote}</span>
                 </div>

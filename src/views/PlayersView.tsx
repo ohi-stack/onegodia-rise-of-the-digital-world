@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Users, 
   Sparkles, 
@@ -8,19 +8,48 @@ import {
   Send, 
   ShieldCheck, 
   ArrowRight,
-  MessageSquare
+  MessageSquare,
+  TrendingUp,
+  Award,
+  Zap,
+  Activity,
+  BarChart3,
+  Calendar,
+  Layers,
+  Info,
+  Coins
 } from 'lucide-react';
-import { NavigationTab } from '../types';
+import { 
+  ResponsiveContainer, 
+  AreaChart, 
+  Area, 
+  LineChart, 
+  Line, 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend 
+} from 'recharts';
+import { NavigationTab, PlayerProgress, Mission } from '../types';
 import { sound } from '../services/audioService';
+import { useTheme } from '../context/ThemeContext';
 
 interface PlayersViewProps {
   setActiveTab: (tab: NavigationTab) => void;
+  progress?: PlayerProgress;
+  mission?: Mission;
 }
 
-export const PlayersView: React.FC<PlayersViewProps> = ({ setActiveTab }) => {
+export const PlayersView: React.FC<PlayersViewProps> = ({ setActiveTab, progress, mission }) => {
+  const { theme } = useTheme();
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackCategory, setFeedbackCategory] = useState('Movement & Controls');
+  const [chartMetric, setChartMetric] = useState<'xp_credits_line' | 'xp_growth' | 'session_bars' | 'telemetry_curve'>('xp_credits_line');
+  const [timeRange, setTimeRange] = useState<'all' | 'recent'>('all');
 
   const handleSubmitFeedback = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +57,105 @@ export const PlayersView: React.FC<PlayersViewProps> = ({ setActiveTab }) => {
     sound.playFragmentCollected();
     setFeedbackSent(true);
   };
+
+  // Calculate dynamic bonuses from active game state
+  const isMissionComplete = progress?.missionsCompleted?.includes('mission_001') || mission?.status === 'Complete';
+  const fragmentCount = progress?.collectedFragments?.length || 0;
+  const creditBonus = Math.floor(((progress?.credits || 250) - 250) / 2);
+  const liveSessionBonusXP = (isMissionComplete ? 750 : (mission?.currentObjectiveIndex || 0) * 150) + (fragmentCount * 250) + Math.max(0, creditBonus);
+
+  // Chronological player progress data
+  const rawChartData = useMemo(() => [
+    {
+      cycle: 'Cycle 01',
+      sessionName: 'Sector 7 Drop',
+      date: 'Aug 24',
+      cumulativeXP: 150,
+      sessionXP: 150,
+      directivesCompleted: 1,
+      signalStrength: 28,
+      credits: 50,
+      note: 'Initial grid drop & jump calibration'
+    },
+    {
+      cycle: 'Cycle 02',
+      sessionName: 'Aria Pulse Contact',
+      date: 'Aug 25',
+      cumulativeXP: 450,
+      sessionXP: 300,
+      directivesCompleted: 2,
+      signalStrength: 45,
+      credits: 100,
+      note: 'Mission 001 briefing unlocked'
+    },
+    {
+      cycle: 'Cycle 03',
+      sessionName: 'Highway Transit',
+      date: 'Aug 27',
+      cumulativeXP: 850,
+      sessionXP: 400,
+      directivesCompleted: 3,
+      signalStrength: 62,
+      credits: 150,
+      note: 'Cyber-Cruiser vehicle test'
+    },
+    {
+      cycle: 'Cycle 04',
+      sessionName: 'Node Resonator Scan',
+      date: 'Aug 28',
+      cumulativeXP: 1350,
+      sessionXP: 500,
+      directivesCompleted: 4,
+      signalStrength: 78,
+      credits: 200,
+      note: 'Photonic beam frequency locked'
+    },
+    {
+      cycle: 'Cycle 05',
+      sessionName: 'Fragment Extraction',
+      date: 'Aug 29',
+      cumulativeXP: 1950,
+      sessionXP: 600,
+      directivesCompleted: 5,
+      signalStrength: 89,
+      credits: 250,
+      note: 'Foundational Data Fragment stored'
+    },
+    {
+      cycle: 'Cycle 06',
+      sessionName: 'Tactical HUD Master',
+      date: 'Aug 30',
+      cumulativeXP: 2450,
+      sessionXP: 500,
+      directivesCompleted: 6,
+      signalStrength: 94,
+      credits: 300,
+      note: 'Radar scan & waypoint navigation'
+    },
+    {
+      cycle: 'Cycle 07',
+      sessionName: 'Live Session Alpha',
+      date: 'Aug 31',
+      cumulativeXP: 2450 + liveSessionBonusXP,
+      sessionXP: 450 + liveSessionBonusXP,
+      directivesCompleted: 6 + (isMissionComplete ? 2 : 1),
+      signalStrength: 98,
+      credits: progress?.credits || 350,
+      note: 'Active session real-time telemetry'
+    }
+  ], [liveSessionBonusXP, isMissionComplete, progress?.credits]);
+
+  const chartData = useMemo(() => {
+    if (timeRange === 'recent') {
+      return rawChartData.slice(-4);
+    }
+    return rawChartData;
+  }, [rawChartData, timeRange]);
+
+  const totalXP = rawChartData[rawChartData.length - 1].cumulativeXP;
+  const currentRankLevel = Math.floor(totalXP / 600) + 1;
+  const xpIntoCurrentLevel = totalXP % 600;
+  const xpToNextLevel = 600 - xpIntoCurrentLevel;
 
   return (
     <div className="space-y-6 py-2 font-sans">
@@ -42,10 +170,10 @@ export const PlayersView: React.FC<PlayersViewProps> = ({ setActiveTab }) => {
             </span>
           </div>
           <h1 className="text-lg sm:text-xl font-bold text-white">
-            Player Onboarding & Staged Capability Matrix
+            Player Telemetry, XP Progress & Staged Capability Matrix
           </h1>
           <p className="text-xs font-mono text-slate-400 mt-0.5">
-            Clear separation between active prototype gameplay and future open-world systems.
+            Real-time player telemetry, visual XP accumulation curves, and staged capability boundaries.
           </p>
         </div>
 
@@ -54,11 +182,448 @@ export const PlayersView: React.FC<PlayersViewProps> = ({ setActiveTab }) => {
             sound.playClick();
             setActiveTab('prototype');
           }}
-          className="px-3 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs font-mono shadow-sm flex items-center gap-1.5 transition-all self-start md:self-auto"
+          className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs font-mono shadow-sm flex items-center gap-1.5 transition-all self-start md:self-auto"
         >
           <Gamepad2 className="w-3.5 h-3.5" />
           <span>Launch Playable V1</span>
         </button>
+      </div>
+
+      {/* Recharts Player Progress & XP Analytics Section */}
+      <div className="p-4 sm:p-5 rounded-xl bg-[#0c0e14] border border-blue-500/30 shadow-xl space-y-4 font-mono">
+        
+        {/* Analytics Top Bar */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-[#1e2230]">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-blue-400" />
+              <h2 className="font-bold text-white text-sm font-sans tracking-wide">
+                Player Experience Progression & Telemetry (Recharts Visualizer)
+              </h2>
+              <span className="px-2 py-0.5 rounded text-[10px] bg-blue-950 text-blue-300 border border-blue-500/40">
+                Live Data Active
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 font-sans">
+              Cumulative XP earned across operative cycles, telemetry signal strength, and mission directives cleared.
+            </p>
+          </div>
+
+          {/* Metric Selector Tabs */}
+          <div className="flex flex-wrap items-center gap-1.5 bg-[#11131a] p-1 rounded-lg border border-[#1e2230] text-xs">
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                setChartMetric('xp_credits_line');
+              }}
+              className={`px-2.5 py-1 rounded font-bold flex items-center gap-1.5 transition-all ${
+                chartMetric === 'xp_credits_line'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Coins className="w-3 h-3 text-amber-300" />
+              <span>XP & Credits Over Time</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                setChartMetric('xp_growth');
+              }}
+              className={`px-2.5 py-1 rounded font-bold transition-all ${
+                chartMetric === 'xp_growth'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              XP Area Curve
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                setChartMetric('session_bars');
+              }}
+              className={`px-2.5 py-1 rounded font-bold transition-all ${
+                chartMetric === 'session_bars'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Session XP & Directives
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                setChartMetric('telemetry_curve');
+              }}
+              className={`px-2.5 py-1 rounded font-bold transition-all ${
+                chartMetric === 'telemetry_curve'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Signal Calibration (%)
+            </button>
+          </div>
+        </div>
+
+        {/* Quick KPI Stat Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-sans">
+          
+          <div className="p-3 rounded-lg bg-[#11131a] border border-[#1e2230] space-y-1">
+            <div className="flex items-center justify-between text-slate-400 text-[11px] font-mono">
+              <span>Total XP Earned</span>
+              <Award className="w-3.5 h-3.5 text-blue-400" />
+            </div>
+            <div className="text-lg font-bold text-white font-mono">
+              {totalXP.toLocaleString()} <span className="text-blue-400 text-xs">XP</span>
+            </div>
+            <div className="text-[10px] text-emerald-400 flex items-center gap-1 font-mono">
+              <span>+{(liveSessionBonusXP > 0 ? liveSessionBonusXP : 450)} XP this cycle</span>
+            </div>
+          </div>
+
+          <div className="p-3 rounded-lg bg-[#11131a] border border-[#1e2230] space-y-1">
+            <div className="flex items-center justify-between text-slate-400 text-[11px] font-mono">
+              <span>Operative Rank</span>
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            </div>
+            <div className="text-lg font-bold text-white font-mono flex items-baseline gap-1.5">
+              <span>Level {currentRankLevel}</span>
+              <span className="text-[10px] text-slate-400 font-sans">Operative</span>
+            </div>
+            <div className="text-[10px] text-slate-400 font-mono">
+              {xpToNextLevel} XP to Level {currentRankLevel + 1}
+            </div>
+          </div>
+
+          <div className="p-3 rounded-lg bg-[#11131a] border border-[#1e2230] space-y-1">
+            <div className="flex items-center justify-between text-slate-400 text-[11px] font-mono">
+              <span>Player Credits</span>
+              <Coins className="w-3.5 h-3.5 text-amber-400" />
+            </div>
+            <div className="text-lg font-bold text-amber-400 font-mono">
+              {(progress?.credits || 350).toLocaleString()} <span className="text-xs text-amber-300">CR</span>
+            </div>
+            <div className="text-[10px] text-slate-400 font-mono">
+              {(progress?.collectedFragments?.length || 0)} Foundational Fragments
+            </div>
+          </div>
+
+          <div className="p-3 rounded-lg bg-[#11131a] border border-[#1e2230] space-y-1">
+            <div className="flex items-center justify-between text-slate-400 text-[11px] font-mono">
+              <span>Directives Cleared</span>
+              <Zap className="w-3.5 h-3.5 text-purple-400" />
+            </div>
+            <div className="text-lg font-bold text-white font-mono">
+              {rawChartData[rawChartData.length - 1].directivesCompleted} / 8
+            </div>
+            <div className="text-[10px] text-emerald-400 font-mono">
+              {isMissionComplete ? 'Mission 001 Finalized' : 'Directive Active'}
+            </div>
+          </div>
+
+        </div>
+
+        {/* Recharts Canvas Container */}
+        <div className="pt-2">
+          <div className="flex items-center justify-between text-xs text-slate-400 pb-2 px-1 font-mono">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-slate-300">
+                {chartMetric === 'xp_credits_line' && 'Line Chart: Player Experience (XP) & Credits Gained Over Operative Cycles'}
+                {chartMetric === 'xp_growth' && 'Area Chart: Cumulative Experience Points (XP) Over Operative Cycles'}
+                {chartMetric === 'session_bars' && 'Bar Chart: Cycle-by-Cycle XP Gain vs. Directives Cleared'}
+                {chartMetric === 'telemetry_curve' && 'Line Chart: Sector 7 Photonic Signal Calibration Resonance (%)'}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 text-[11px]">
+              <span className="text-slate-500">Range:</span>
+              <button
+                type="button"
+                onClick={() => setTimeRange('all')}
+                className={`px-2 py-0.5 rounded transition-colors ${
+                  timeRange === 'all' ? 'bg-[#1e2230] text-blue-300 font-bold' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                All 7 Cycles
+              </button>
+              <button
+                type="button"
+                onClick={() => setTimeRange('recent')}
+                className={`px-2 py-0.5 rounded transition-colors ${
+                  timeRange === 'recent' ? 'bg-[#1e2230] text-blue-300 font-bold' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Recent Operations
+              </button>
+            </div>
+          </div>
+
+          <div className="h-72 sm:h-80 w-full bg-[#08090e] p-3 rounded-lg border border-[#1e2230]/80">
+            <ResponsiveContainer width="100%" height="100%">
+              {chartMetric === 'xp_credits_line' ? (
+                <LineChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={theme === 'light' ? '#e2e8f0' : '#1e2230'} vertical={false} />
+                  <XAxis 
+                    dataKey="cycle" 
+                    stroke={theme === 'light' ? '#64748b' : '#64748b'} 
+                    fontSize={11} 
+                    tickLine={false} 
+                    axisLine={{ stroke: theme === 'light' ? '#cbd5e1' : '#1e2230' }}
+                  />
+                  <YAxis 
+                    yAxisId="left"
+                    stroke="#3b82f6" 
+                    fontSize={11} 
+                    tickLine={false} 
+                    axisLine={{ stroke: theme === 'light' ? '#cbd5e1' : '#1e2230' }}
+                    tickFormatter={(val) => `${val} XP`}
+                  />
+                  <YAxis 
+                    yAxisId="right"
+                    orientation="right"
+                    stroke="#f59e0b" 
+                    fontSize={11} 
+                    tickLine={false} 
+                    axisLine={{ stroke: theme === 'light' ? '#cbd5e1' : '#1e2230' }}
+                    tickFormatter={(val) => `${val} CR`}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: theme === 'light' ? '#ffffff' : '#0c0e14', 
+                      borderColor: theme === 'light' ? '#cbd5e1' : '#1e2230', 
+                      borderRadius: '8px', 
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+                      fontSize: '12px',
+                      color: theme === 'light' ? '#0f172a' : '#f8fafc',
+                      fontFamily: 'monospace'
+                    }} 
+                    formatter={(value: any, name: any) => [
+                      name === 'cumulativeXP' ? `${Number(value).toLocaleString()} XP` : `${Number(value).toLocaleString()} CR`, 
+                      name === 'cumulativeXP' ? 'Accumulated XP' : 'Player Credits'
+                    ]}
+                    labelFormatter={(label, items) => {
+                      const item = items?.[0]?.payload;
+                      return `${label}: ${item?.sessionName || ''} (${item?.date || ''})`;
+                    }}
+                  />
+                  <Legend 
+                    wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} 
+                  />
+                  <Line 
+                    yAxisId="left"
+                    type="monotone" 
+                    dataKey="cumulativeXP" 
+                    name="Accumulated XP" 
+                    stroke="#3b82f6" 
+                    strokeWidth={3} 
+                    dot={{ r: 4, fill: '#3b82f6' }}
+                    activeDot={{ r: 7, fill: '#60a5fa', stroke: '#1e3a8a', strokeWidth: 2 }}
+                  />
+                  <Line 
+                    yAxisId="right"
+                    type="monotone" 
+                    dataKey="credits" 
+                    name="Credits (CR)" 
+                    stroke="#f59e0b" 
+                    strokeWidth={2.5} 
+                    strokeDasharray="4 4"
+                    dot={{ r: 4, fill: '#f59e0b' }}
+                    activeDot={{ r: 7, fill: '#fbbf24', stroke: '#78350f', strokeWidth: 2 }}
+                  />
+                </LineChart>
+              ) : chartMetric === 'xp_growth' ? (
+                <AreaChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="xpGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke={theme === 'light' ? '#e2e8f0' : '#1e2230'} vertical={false} />
+                  <XAxis 
+                    dataKey="cycle" 
+                    stroke="#64748b" 
+                    fontSize={11} 
+                    tickLine={false} 
+                    axisLine={{ stroke: theme === 'light' ? '#cbd5e1' : '#1e2230' }}
+                  />
+                  <YAxis 
+                    stroke="#64748b" 
+                    fontSize={11} 
+                    tickLine={false} 
+                    axisLine={{ stroke: theme === 'light' ? '#cbd5e1' : '#1e2230' }}
+                    tickFormatter={(val) => `${val} XP`}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: theme === 'light' ? '#ffffff' : '#0c0e14', 
+                      borderColor: theme === 'light' ? '#cbd5e1' : '#1e2230', 
+                      borderRadius: '8px', 
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+                      fontSize: '12px',
+                      color: theme === 'light' ? '#0f172a' : '#f8fafc',
+                      fontFamily: 'monospace'
+                    }} 
+                    formatter={(value: any, name: any) => [
+                      `${Number(value).toLocaleString()} XP`, 
+                      name === 'cumulativeXP' ? 'Total Accumulated XP' : name
+                    ]}
+                    labelFormatter={(label, items) => {
+                      const item = items?.[0]?.payload;
+                      return `${label}: ${item?.sessionName || ''} (${item?.date || ''})`;
+                    }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="cumulativeXP" 
+                    name="Cumulative XP" 
+                    stroke="#3b82f6" 
+                    strokeWidth={2.5} 
+                    fillOpacity={1} 
+                    fill="url(#xpGradient)" 
+                    activeDot={{ r: 6, fill: '#60a5fa', stroke: '#1e3a8a', strokeWidth: 2 }}
+                  />
+                </AreaChart>
+              ) : chartMetric === 'session_bars' ? (
+                <BarChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={theme === 'light' ? '#e2e8f0' : '#1e2230'} vertical={false} />
+                  <XAxis 
+                    dataKey="cycle" 
+                    stroke="#64748b" 
+                    fontSize={11} 
+                    tickLine={false} 
+                    axisLine={{ stroke: theme === 'light' ? '#cbd5e1' : '#1e2230' }}
+                  />
+                  <YAxis 
+                    yAxisId="left"
+                    stroke="#10b981" 
+                    fontSize={11} 
+                    tickLine={false} 
+                    axisLine={{ stroke: theme === 'light' ? '#cbd5e1' : '#1e2230' }}
+                    tickFormatter={(val) => `+${val} XP`}
+                  />
+                  <YAxis 
+                    yAxisId="right"
+                    orientation="right"
+                    stroke="#8b5cf6" 
+                    fontSize={11} 
+                    tickLine={false} 
+                    axisLine={{ stroke: theme === 'light' ? '#cbd5e1' : '#1e2230' }}
+                    tickFormatter={(val) => `${val} Dir`}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: theme === 'light' ? '#ffffff' : '#0c0e14', 
+                      borderColor: theme === 'light' ? '#cbd5e1' : '#1e2230', 
+                      borderRadius: '8px', 
+                      fontSize: '12px',
+                      color: theme === 'light' ? '#0f172a' : '#f8fafc',
+                      fontFamily: 'monospace'
+                    }}
+                    labelFormatter={(label, items) => {
+                      const item = items?.[0]?.payload;
+                      return `${label}: ${item?.sessionName || ''} (${item?.note || ''})`;
+                    }}
+                  />
+                  <Legend 
+                    wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} 
+                  />
+                  <Bar 
+                    yAxisId="left" 
+                    dataKey="sessionXP" 
+                    name="Session XP Gained" 
+                    fill="#10b981" 
+                    radius={[4, 4, 0, 0]} 
+                  />
+                  <Bar 
+                    yAxisId="right" 
+                    dataKey="directivesCompleted" 
+                    name="Directives Cleared" 
+                    fill="#8b5cf6" 
+                    radius={[4, 4, 0, 0]} 
+                  />
+                </BarChart>
+              ) : (
+                <LineChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={theme === 'light' ? '#e2e8f0' : '#1e2230'} vertical={false} />
+                  <XAxis 
+                    dataKey="cycle" 
+                    stroke="#64748b" 
+                    fontSize={11} 
+                    tickLine={false} 
+                    axisLine={{ stroke: theme === 'light' ? '#cbd5e1' : '#1e2230' }}
+                  />
+                  <YAxis 
+                    domain={[0, 100]}
+                    stroke="#f59e0b" 
+                    fontSize={11} 
+                    tickLine={false} 
+                    axisLine={{ stroke: theme === 'light' ? '#cbd5e1' : '#1e2230' }}
+                    tickFormatter={(val) => `${val}%`}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: theme === 'light' ? '#ffffff' : '#0c0e14', 
+                      borderColor: theme === 'light' ? '#cbd5e1' : '#1e2230', 
+                      borderRadius: '8px', 
+                      fontSize: '12px',
+                      color: theme === 'light' ? '#0f172a' : '#f8fafc',
+                      fontFamily: 'monospace'
+                    }}
+                    formatter={(value: any) => [`${value}% Signal Resonance`, 'Calibration Strength']}
+                    labelFormatter={(label, items) => {
+                      const item = items?.[0]?.payload;
+                      return `${label}: ${item?.sessionName || ''}`;
+                    }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="signalStrength" 
+                    name="Signal Calibration %" 
+                    stroke="#f59e0b" 
+                    strokeWidth={2.5} 
+                    dot={{ r: 4, fill: '#f59e0b' }} 
+                    activeDot={{ r: 7, fill: '#fbbf24', stroke: '#78350f', strokeWidth: 2 }}
+                  />
+                </LineChart>
+              )}
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Milestone XP Breakdown Legend */}
+        <div className="pt-2 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px] text-slate-300 font-sans">
+          <div className="p-2.5 rounded-lg bg-[#11131a] border border-[#1e2230] flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-blue-400 shrink-0"></div>
+            <div>
+              <span className="font-bold text-white font-mono">Mission 001 Flow:</span>
+              <span className="text-slate-400 ml-1">+750 XP for Aria contact, photonic scan & data extraction.</span>
+            </div>
+          </div>
+
+          <div className="p-2.5 rounded-lg bg-[#11131a] border border-[#1e2230] flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></div>
+            <div>
+              <span className="font-bold text-white font-mono">Transit Highway:</span>
+              <span className="text-slate-400 ml-1">+400 XP vehicle acceleration telemetry along Sector 7.</span>
+            </div>
+          </div>
+
+          <div className="p-2.5 rounded-lg bg-[#11131a] border border-[#1e2230] flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-amber-400 shrink-0"></div>
+            <div>
+              <span className="font-bold text-white font-mono">Telemetry Radar:</span>
+              <span className="text-slate-400 ml-1">Up to +500 XP waypoint pings & fast-travel warp test.</span>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       {/* Two Column Grid: Playable Now vs Future Roadmap */}
@@ -224,3 +789,4 @@ export const PlayersView: React.FC<PlayersViewProps> = ({ setActiveTab }) => {
     </div>
   );
 };
+

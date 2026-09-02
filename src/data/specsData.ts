@@ -122,6 +122,62 @@ The foundational loop proven in V1 consists of:
 `
   },
   {
+    filename: 'DRONE_AI_PATROL_SPEC.md',
+    title: 'Sentinel Drone AI & Vision Cone Specification',
+    category: 'AI & Avoid Mechanics',
+    content: `# Sentinel Drone Patrol AI & Vision Cone Architecture (Avoid Phase)
+
+**Target Actors:** \`BP_SentinelDrone\` (Pawn) + \`AIC_SentinelDrone\` (AI Controller)  
+**Classification:** Core Avoid Mechanic for Genesis District One & Sector 7
+
+---
+
+## 1. Tactical Spline Patrol System
+* **Spline Component:** \`USplineComponent\` path definition orbiting sensitive sector assets (Sector 7 Corrupted Node & Energy Core clusters).
+* **Movement Loop:** Continuous closed-loop spline traversal using \`GetLocationAtDistanceAlongSpline\` and delta time interpolation.
+* **Patrol Speed:** 240 units/sec with smooth banking angular roll on spline curve turns.
+
+## 2. Dynamic Vision Cone & Perception Engine
+* **AIPerception:** \`UAIPerceptionComponent\` with \`UAISenseConfig_Sight\`.
+* **Vision Range:** 650 world units.
+* **Sight Field of View (FOV):** 90 degrees horizontal vision cone (45° half-angle).
+* **Photonic Searchlight:** Forward-projected volumetric spotlight with color transition:
+  * 🔵 **Cyan / Blue [Normal]:** Default spline patrol mode.
+  * 🟡 **Amber [Investigating]:** Suspected player movement detected at periphery.
+  * 🔴 **Red [Alert / Avoid Warning]:** Direct vision cone line of sight engagement.
+
+## 3. C++ Architecture Blockout
+\`\`\`cpp
+// AIC_SentinelDrone.h
+#pragma once
+#include "CoreMinimal.h"
+#include "AIController.h"
+#include "Perception/AIPerceptionTypes.h"
+#include "AIC_SentinelDrone.generated.h"
+
+UCLASS()
+class AAIC_SentinelDrone : public AAIController
+{
+    GENERATED_BODY()
+public:
+    AAIC_SentinelDrone();
+
+protected:
+    virtual void BeginPlay() override;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI|Perception")
+    class UAIPerceptionComponent* DronePerception;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI|Perception")
+    class UAISenseConfig_Sight* SightConfig;
+
+    UFUNCTION()
+    void OnTargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus);
+};
+\`\`\`
+`
+  },
+  {
     filename: 'TACTICAL_HUD_SPEC.md',
     title: 'Tactical HUD & Minimap Specification',
     category: 'UI/UX & Systems',

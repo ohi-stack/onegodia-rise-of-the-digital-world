@@ -10,10 +10,14 @@ import {
   Eye,
   Zap,
   Radio,
-  Maximize2
+  Maximize2,
+  Volume2,
+  CheckCircle2,
+  Check
 } from 'lucide-react';
 import { PlayerState, Mission, PlayerProgress, NavigationTab } from '../../types';
 import { sound } from '../../services/audioService';
+import { saveMissionHistoryEntry } from '../../services/historyService';
 import { NPCDialogueModal } from './NPCDialogueModal';
 import { RewardModal } from './RewardModal';
 import { MobileControllerPad } from './MobileControllerPad';
@@ -87,6 +91,7 @@ export const PlayableCanvasGame: React.FC<PlayableCanvasGameProps> = ({
     down: false,
     left: false,
     right: false,
+    sprint: false,
   });
 
   // UI state for React overlays
@@ -103,6 +108,12 @@ export const PlayableCanvasGame: React.FC<PlayableCanvasGameProps> = ({
   const [showControlsGuide, setShowControlsGuide] = useState(false);
   const [radarSweepAngle, setRadarSweepAngle] = useState(0);
   const [distanceToObjective, setDistanceToObjective] = useState(0);
+  const [objectiveToast, setObjectiveToast] = useState<{
+    step: number;
+    title: string;
+    description: string;
+    timestamp: number;
+  } | null>(null);
 
   // Synchronize initial purified state from completed missions
   useEffect(() => {
@@ -111,6 +122,26 @@ export const PlayableCanvasGame: React.FC<PlayableCanvasGameProps> = ({
       nodeRef.current.fragmentCollected = true;
     }
   }, [mission.status, progress.missionsCompleted]);
+
+  // Trigger tactical Web Audio API objective cue with on-screen HUD banner
+  const triggerObjectiveComplete = useCallback((stepNumber: number, title: string, description: string) => {
+    sound.playObjectiveComplete(stepNumber);
+    setObjectiveToast({
+      step: stepNumber,
+      title,
+      description,
+      timestamp: Date.now()
+    });
+  }, []);
+
+  // Auto-dismiss objective toast after 3.8s
+  useEffect(() => {
+    if (!objectiveToast) return;
+    const timer = setTimeout(() => {
+      setObjectiveToast(null);
+    }, 3800);
+    return () => clearTimeout(timer);
+  }, [objectiveToast]);
 
   // Objective coordinates helper
   const getActiveTarget = useCallback(() => {
@@ -200,10 +231,14 @@ export const PlayableCanvasGame: React.FC<PlayableCanvasGameProps> = ({
 
   // Mission flow handlers
   const handleAcceptMission = () => {
+    const startTimestamp = Date.now();
+    triggerObjectiveComplete(1, 'Directive Accepted', 'Milestone 1 Cleared: Initial contact with Aria Pulse confirmed');
     setMission(prev => ({
       ...prev,
       status: 'Active',
-      currentObjectiveIndex: 1
+      startedAt: prev.startedAt || startTimestamp,
+      currentObjectiveIndex: 1,
+      objectives: prev.objectives.map((obj, i) => i === 0 ? { ...obj, isCompleted: true } : obj)
     }));
     setProgress(prev => ({ ...prev, activeMissionId: 'MISSION_001_REBUILDING_SIGNAL' }));
     setDialogueOpen(false);
@@ -211,11 +246,27 @@ export const PlayableCanvasGame: React.FC<PlayableCanvasGameProps> = ({
   };
 
   const handleCompleteMission = () => {
-    setMission(prev => ({
-      ...prev,
-      status: 'Complete',
-      currentObjectiveIndex: 5
-    }));
+    triggerObjectiveComplete(6, 'Mission 001 Finalized', 'Signal 100% Calibrated — 250 CR & Data Fragment #001 Claimed');
+    sound.playMissionComplete();
+    
+    const now = Date.now();
+    let completedMissionObj: Mission | null = null;
+
+    setMission(prev => {
+      const startTime = prev.startedAt || (now - 60000);
+      const durationSecs = Math.max(1, Math.floor((now - startTime) / 1000));
+      const updated: Mission = {
+        ...prev,
+        status: 'Complete',
+        completedAt: now,
+        durationSeconds: durationSecs,
+        currentObjectiveIndex: 5,
+        objectives: prev.objectives.map(o => ({ ...o, isCompleted: true }))
+      };
+      completedMissionObj = updated;
+      saveMissionHistoryEntry(updated, durationSecs);
+      return updated;
+    });
     
     // Add reward to player progress
     setProgress(prev => {
@@ -334,7 +385,7 @@ export const PlayableCanvasGame: React.FC<PlayableCanvasGameProps> = ({
       const n = nodeRef.current;
 
       // 1. Process Movement & Physics
-      const isShift = keys['shift'] || keys['shiftleft'] || keys['shiftright'];
+      const isShift = keys['shift'] || keys['shiftleft'] || keys['shiftright'] || mInput.sprint;
       p.isSprinting = isShift && !p.isDriving;
 
       const moveUp = keys['w'] || keys['arrowup'] || mInput.up;
@@ -444,6 +495,21 @@ export const PlayableCanvasGame: React.FC<PlayableCanvasGameProps> = ({
       setNearVehicle(!p.isDriving && distVeh < 75);
       setNearNode(distNode < 90);
 
+      // Objective 2 Trigger: Crossing Transit Highway towards Sector 7
+      if (
+        mission.status === 'Active' && 
+        mission.currentObjectiveIndex === 1 && 
+        !mission.objectives[1]?.isCompleted && 
+        (p.x > 560 || distNode < 240)
+      ) {
+        triggerObjectiveComplete(2, 'Sector 7 Approach Cleared', 'Step 2 Complete: Reached Sector 7 transit corridor');
+        setMission(prev => ({
+          ...prev,
+          currentObjectiveIndex: 2,
+          objectives: prev.objectives.map((obj, i) => i === 1 ? { ...obj, isCompleted: true } : obj)
+        }));
+      }
+
       // 3. Node Scanning Process
       if (n.isScanning && distNode < 95 && !n.isPurified) {
         n.scanProgress = Math.min(100, n.scanProgress + 0.8);
@@ -458,14 +524,15 @@ export const PlayableCanvasGame: React.FC<PlayableCanvasGameProps> = ({
           n.isPurified = true;
           n.isScanning = false;
           n.hasSpawnedFragment = true;
-          sound.playFragmentCollected();
-          // Update mission objective 3 & 4
+          triggerObjectiveComplete(3, 'Node #001 Purified', 'Step 3 Complete: Signal frequency harmonics restored');
+          
+          // Update mission objective 3
           setMission(prev => ({
             ...prev,
             objectives: prev.objectives.map((obj, i) => 
-              i === 2 || i === 3 ? { ...obj, isCompleted: true } : obj
+              i === 2 ? { ...obj, isCompleted: true } : obj
             ),
-            currentObjectiveIndex: 4
+            currentObjectiveIndex: 3
           }));
         }
       } else if (!n.isScanning && !n.isPurified && n.scanProgress > 0) {
@@ -473,10 +540,37 @@ export const PlayableCanvasGame: React.FC<PlayableCanvasGameProps> = ({
         setScanPercent(Math.round(n.scanProgress));
       }
 
-      // Auto collect fragment when close
+      // Objective 4: Auto collect fragment when close
       if (n.hasSpawnedFragment && !n.fragmentCollected && distNode < 70) {
         n.fragmentCollected = true;
+        triggerObjectiveComplete(4, 'Data Fragment Collected', 'Step 4 Complete: Secured Onegodia Data Fragment #001');
         sound.playFragmentCollected();
+
+        setMission(prev => ({
+          ...prev,
+          objectives: prev.objectives.map((obj, i) => 
+            i === 3 ? { ...obj, isCompleted: true } : obj
+          ),
+          currentObjectiveIndex: 4
+        }));
+      }
+
+      // Objective 5: Returning close to Aria Pulse with fragment
+      if (
+        mission.status === 'Active' && 
+        n.fragmentCollected && 
+        distNPC < 65 && 
+        !mission.objectives[4]?.isCompleted &&
+        mission.currentObjectiveIndex === 4
+      ) {
+        triggerObjectiveComplete(5, 'Returned to Hub Plaza', 'Step 5 Complete: In proximity of Aria Pulse');
+        setMission(prev => ({
+          ...prev,
+          objectives: prev.objectives.map((obj, i) => 
+            i === 4 ? { ...obj, isCompleted: true } : obj
+          ),
+          currentObjectiveIndex: 5
+        }));
       }
 
       // Update telemetry
@@ -670,20 +764,82 @@ export const PlayableCanvasGame: React.FC<PlayableCanvasGameProps> = ({
       ctx.font = '8px monospace';
       ctx.fillText('Citizen CX-42', civX, civY - 14);
 
-      // Draw Security Drone (Sentinel OS-9) orbiting Outpost
-      droneAngle += 0.02;
-      const droneX = 920 + Math.cos(droneAngle) * 60;
-      const droneY = 260 + Math.sin(droneAngle) * 45;
+      // Draw Security Drone (BP_SentinelDrone / AIC_SentinelDrone with Spline & Vision Cone)
+      droneAngle += 0.018;
+      const droneCenterX = 920;
+      const droneCenterY = 260;
+      const splineRadiusX = 80;
+      const splineRadiusY = 55;
+      const droneX = droneCenterX + Math.cos(droneAngle) * splineRadiusX;
+      const droneY = droneCenterY + Math.sin(droneAngle) * splineRadiusY;
+      
+      // Calculate drone heading tangential to spline
+      const droneHeading = Math.atan2(
+        -Math.sin(droneAngle) * splineRadiusY,
+        -Math.cos(droneAngle) * splineRadiusX
+      ) + Math.PI / 2;
+
+      // Draw Spline Patrol Route Curve
       ctx.beginPath();
-      ctx.arc(droneX, droneY, 7, 0, Math.PI * 2);
-      ctx.fillStyle = '#0369a1';
-      ctx.fill();
-      ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 1.5;
+      ctx.ellipse(droneCenterX, droneCenterY, splineRadiusX, splineRadiusY, 0, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.18)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
       ctx.stroke();
-      ctx.fillStyle = '#38bdf8';
-      ctx.font = '8px monospace';
-      ctx.fillText('Sentinel OS-9', droneX, droneY - 12);
+      ctx.setLineDash([]);
+
+      // Check distance & vision cone collision with player (Avoid Phase)
+      const distToPlayer = Math.hypot(p.x - droneX, p.y - droneY);
+      const angleToPlayer = Math.atan2(p.y - droneY, p.x - droneX);
+      let angleDiff = Math.abs(angleToPlayer - droneHeading);
+      while (angleDiff > Math.PI) angleDiff = Math.abs(angleDiff - 2 * Math.PI);
+
+      const isPlayerInVisionCone = distToPlayer < 120 && angleDiff < 0.45; // 45 deg vision cone
+
+      // Draw Dynamic Vision Cone
+      ctx.save();
+      ctx.translate(droneX, droneY);
+      ctx.rotate(droneHeading);
+      
+      const coneLength = 110;
+      const coneAngle = 0.45; // ~26 degrees half-angle (52 deg total FOV)
+      
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, coneLength, -coneAngle, coneAngle);
+      ctx.closePath();
+
+      if (isPlayerInVisionCone) {
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.28)'; // Red Alert Avoid Warning
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.7)';
+      } else {
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.12)'; // Normal Cyan Search Cone
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+      }
+      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+
+      // Draw Drone Body & Thrusters
+      ctx.beginPath();
+      ctx.arc(droneX, droneY, 8, 0, Math.PI * 2);
+      ctx.fillStyle = isPlayerInVisionCone ? '#7f1d1d' : '#0369a1';
+      ctx.fill();
+      ctx.strokeStyle = isPlayerInVisionCone ? '#ef4444' : '#38bdf8';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Drone Core Optical Sensor
+      ctx.beginPath();
+      ctx.arc(droneX, droneY, 3, 0, Math.PI * 2);
+      ctx.fillStyle = isPlayerInVisionCone ? '#fee2e2' : '#bae6fd';
+      ctx.fill();
+
+      // Drone Floating Label & Avoid Warning Indicator
+      ctx.fillStyle = isPlayerInVisionCone ? '#ef4444' : '#38bdf8';
+      ctx.font = 'bold 8px monospace';
+      ctx.fillText(isPlayerInVisionCone ? '⚠ SENTINEL ALERT: AVOID' : 'BP_SentinelDrone OS-9', droneX, droneY - 14);
 
       // Draw Mission Guide NPC (Aria Pulse)
       const npcX = 220;
@@ -805,7 +961,7 @@ export const PlayableCanvasGame: React.FC<PlayableCanvasGameProps> = ({
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [getActiveTarget, mission.status, setMission]);
+  }, [getActiveTarget, mission.status, mission.currentObjectiveIndex, mission.objectives, setMission, triggerObjectiveComplete]);
 
   return (
     <div className="flex flex-col gap-3 font-sans max-w-7xl mx-auto">
@@ -833,8 +989,22 @@ export const PlayableCanvasGame: React.FC<PlayableCanvasGameProps> = ({
           </div>
         </div>
 
-        {/* Right: Quick Actions & Help */}
+        {/* Right: Quick Actions, Sound Test & Help */}
         <div className="flex items-center gap-1.5">
+          {/* Test Audio Cue Button */}
+          <button
+            id="test-objective-audio-btn"
+            title="Trigger Web Audio API objective completion sound cue"
+            onClick={() => {
+              const testStep = (mission.currentObjectiveIndex % 6) + 1;
+              triggerObjectiveComplete(testStep, `Telemetry Milestone #${testStep} Synchronized`, 'Web Audio API synthesized objective completion harmonic');
+            }}
+            className="px-2 py-1 bg-[#11131a] hover:bg-blue-950/40 text-blue-300 rounded border border-[#1e2230] hover:border-blue-500/50 flex items-center gap-1.5 text-[11px] transition-colors"
+          >
+            <Volume2 className="w-3 h-3 text-blue-400" />
+            <span className="hidden sm:inline">Test Audio Cue</span>
+          </button>
+
           <button
             id="controls-guide-toggle-btn"
             onClick={() => {
@@ -886,6 +1056,35 @@ export const PlayableCanvasGame: React.FC<PlayableCanvasGameProps> = ({
           height={WORLD_HEIGHT}
           className="w-full h-full object-cover block"
         />
+
+        {/* Tactical Objective Completion HUD Toast Banner */}
+        {objectiveToast && (
+          <div 
+            id="tactical-objective-toast"
+            className="absolute top-3 inset-x-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 max-w-md bg-[#0c0e14]/95 border-2 border-blue-500/90 rounded-xl p-3 shadow-2xl shadow-blue-950/80 backdrop-blur-md animate-objective-card-pulse z-30 flex items-start gap-3 pointer-events-auto"
+          >
+            <div className="w-8 h-8 rounded-lg bg-blue-500/20 border border-blue-400 flex items-center justify-center text-blue-300 shrink-0 animate-tactical-pulse">
+              <CheckCircle2 className="w-4 h-4 text-blue-400" />
+            </div>
+            <div className="flex-1 min-w-0 font-sans">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono text-[10px] font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1">
+                  <Volume2 className="w-3 h-3 animate-pulse" />
+                  OBJECTIVE COMPLETE — STEP {objectiveToast.step}
+                </span>
+                <span className="text-[9px] font-mono text-emerald-400 font-bold bg-emerald-950/80 px-1.5 py-0.2 rounded border border-emerald-500/40">
+                  CLEARED
+                </span>
+              </div>
+              <h4 className="text-xs font-bold text-white mt-0.5 truncate">
+                {objectiveToast.title}
+              </h4>
+              <p className="text-[11px] text-slate-300 leading-snug mt-0.5">
+                {objectiveToast.description}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Live Tactical HUD Overlay (Top-Left) */}
         <div className="absolute top-2.5 left-2.5 bg-[#0c0e14]/90 border border-[#1e2230] p-2 rounded-lg font-mono text-[10px] text-slate-300 backdrop-blur-md space-y-0.5 shadow-lg pointer-events-none">
@@ -1055,6 +1254,16 @@ export const PlayableCanvasGame: React.FC<PlayableCanvasGameProps> = ({
             >
               Sector 7 Digital Node #001
             </button>
+            <button
+              id="open-world-map-from-game-btn"
+              onClick={() => {
+                sound.playClick();
+                setActiveTab('map');
+              }}
+              className="px-2.5 py-0.5 bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/60 text-cyan-300 rounded text-[11px] font-bold transition-colors flex items-center gap-1"
+            >
+              <span>Full Sector 7 Map &rarr;</span>
+            </button>
           </div>
         </div>
 
@@ -1065,6 +1274,9 @@ export const PlayableCanvasGame: React.FC<PlayableCanvasGameProps> = ({
           }}
           onJumpPress={handleJump}
           onMountPress={handleMountToggle}
+          onSprintToggle={(sprint) => {
+            mobileInputRef.current.sprint = sprint;
+          }}
           onInteractPress={() => {
             if (nearNPC) {
               sound.playClick();
@@ -1076,13 +1288,14 @@ export const PlayableCanvasGame: React.FC<PlayableCanvasGameProps> = ({
             }
           }}
           onResetPress={handleResetPosition}
-          onToggleMap={() => setActiveTab('tactical-hud')}
+          onToggleMap={() => setActiveTab('map')}
           onToggleInventory={() => setActiveTab('inventory')}
           isDriving={isDrivingUI}
           playerState={playerState}
           nearNPC={nearNPC}
           nearVehicle={nearVehicle}
           nearNode={nearNode}
+          scanProgress={scanPercent}
         />
       </div>
 

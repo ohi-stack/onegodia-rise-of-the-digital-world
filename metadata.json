@@ -2,5 +2,7 @@
   "name": "Onegodia: Rise of the Digital World™ — MVP v1.0",
   "description": "Interactive MVP v1.0 Playable Prototype, Tactical HUD, Mission 001, Gameplay Grid, Developer Docs, and Game Node for Onegodia: Rise of the Digital World™ by One Gregory Onegodian™.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

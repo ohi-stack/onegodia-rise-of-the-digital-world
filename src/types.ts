@@ -9,6 +9,7 @@ export type NavigationTab =
   | 'prototype'
   | 'gameplay-grid'
   | 'tactical-hud'
+  | 'map'
   | 'missions'
   | 'inventory'
   | 'developers'
@@ -55,6 +56,15 @@ export type MissionStatus =
   | 'Complete'
   | 'Failed / Reset';
 
+export interface ObjectiveReward {
+  type: 'credits' | 'item' | 'telemetry' | 'badge' | 'fragment' | 'exp';
+  name: string;
+  amount?: number;
+  rarity?: 'Foundational' | 'Prototype' | 'Roadmap' | 'Common' | 'Rare' | 'Legendary';
+  icon?: string;
+  description?: string;
+}
+
 export interface MissionObjective {
   id: string;
   stepNumber: number;
@@ -62,6 +72,8 @@ export interface MissionObjective {
   isCompleted: boolean;
   targetCoordinates?: { x: number; y: number };
   targetZone?: string;
+  rewards?: ObjectiveReward[];
+  isPinnedToHUD?: boolean;
 }
 
 export interface Mission {
@@ -78,6 +90,10 @@ export interface Mission {
   currentObjectiveIndex: number;
   briefingDialogue: string;
   completionDialogue: string;
+  startedAt?: number;
+  completedAt?: number;
+  durationSeconds?: number;
+  pinnedObjectiveIds?: string[];
 }
 
 export interface InventoryItem {
@@ -135,9 +151,66 @@ export interface AIAgentRole {
   focusTrack: string;
 }
 
+export interface MissionHistoryEntry {
+  id: string;
+  missionId: string;
+  code: string;
+  title: string;
+  type: string;
+  completedAt: number;
+  startedAt?: number;
+  durationSeconds: number;
+  objectivesCompletedCount: number;
+  totalObjectivesCount: number;
+  rewardCredits: number;
+  rewardItem: string;
+  rewardItemRarity: string;
+  verificationHash: string;
+  stripePaymentReceipt?: {
+    sessionId: string;
+    passName: string;
+    amountTotal: number;
+    currency: string;
+    paidAt: number;
+    status: string;
+    isSimulated?: boolean;
+  };
+}
+
+export interface StripePass {
+  id: string;
+  name: string;
+  price: string;
+  priceCents: number;
+  badge: string;
+  description: string;
+  perks: string[];
+  highlighted?: boolean;
+}
+
 export interface DocFileSpec {
   filename: string;
   title: string;
   category: string;
   content: string;
+}
+
+export interface MapLandmark {
+  id: string;
+  code: string;
+  name: string;
+  district: string;
+  coords: { x: number; y: number };
+  elevation: string;
+  type: 'Safe Sanctuary' | 'Transit Hub' | 'Digital Node' | 'Relic Quarry' | 'Sentinel Hive' | 'Sub-Grid Aqueduct' | 'Perimeter Gate' | 'Telecom Spire';
+  threatLevel: 'Safe Haven' | 'Low Risk' | 'Moderate' | 'Hazardous' | 'Critical Lockdown';
+  status: string;
+  description: string;
+  strategicIntel: string;
+  fastTravelAvailable: boolean;
+  color: string;
+  iconName: string;
+  discovered: boolean;
+  associatedMissions?: string[];
+  lootAvailable?: boolean;
 }
