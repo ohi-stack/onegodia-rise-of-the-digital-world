@@ -1,22 +1,23 @@
 import React, { useState } from 'react';
-import { 
-  Gamepad2, 
-  Layers, 
-  Crosshair, 
+import {
+  Gamepad2,
+  Layers,
+  Crosshair,
   Map as MapIcon,
-  FileText, 
-  Terminal, 
-  Users, 
-  ShieldCheck, 
-  Package, 
-  Volume2, 
-  VolumeX, 
-  Menu, 
-  X, 
+  FileText,
+  Terminal,
+  Users,
+  ShieldCheck,
+  Package,
+  Volume2,
+  VolumeX,
+  Menu,
+  X,
   Sparkles,
   Radio,
   Sun,
-  Moon
+  Moon,
+  GitBranch
 } from 'lucide-react';
 import { NavigationTab, PlayerProgress } from '../types';
 import { sound } from '../services/audioService';
@@ -42,14 +43,13 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, progres
   const toggleSound = () => {
     const muted = sound.toggleMute();
     setIsMuted(muted);
-    if (!muted) {
-      sound.playClick();
-    }
+    if (!muted) sound.playClick();
   };
 
   const navItems: { id: NavigationTab; label: string; icon: React.FC<{ className?: string }> }[] = [
     { id: 'home', label: 'Home', icon: Radio },
-    { id: 'prototype', label: 'Playable Game V1', icon: Gamepad2 },
+    { id: 'development-status', label: 'Development Status', icon: GitBranch },
+    { id: 'prototype', label: 'Web Prototype', icon: Gamepad2 },
     { id: 'map', label: 'World Map', icon: MapIcon },
     { id: 'gameplay-grid', label: 'Gameplay Grid', icon: Layers },
     { id: 'tactical-hud', label: 'Tactical HUD', icon: Crosshair },
@@ -65,19 +65,15 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, progres
     <header className="sticky top-0 z-40 bg-[#0c0e14]/95 border-b border-[#1e2230] backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14">
-          
-          {/* Logo & Node Branding */}
           <div className="flex items-center gap-3">
-            <button 
+            <button
               id="brand-logo-btn"
               onClick={() => handleTabClick('home')}
               className="flex items-center gap-2.5 text-left group focus:outline-none"
             >
               <div className="w-8 h-8 rounded bg-gradient-to-br from-blue-500 to-indigo-700 flex items-center justify-center p-0.5 shadow-md shadow-blue-500/20 group-hover:shadow-blue-400/40 transition-all">
                 <div className="w-full h-full bg-[#090b10] rounded-[3px] flex items-center justify-center">
-                  <span className="font-mono font-black text-sm bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
-                    Ω
-                  </span>
+                  <span className="font-mono font-black text-sm bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">Ω</span>
                 </div>
               </div>
               <div>
@@ -87,9 +83,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, progres
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center px-1 py-0.2 text-[9px] font-mono font-semibold bg-blue-950/80 text-blue-300 border border-blue-700/50 rounded">
-                    MVP v1.0
-                  </span>
+                  <span className="inline-flex items-center px-1 py-0.2 text-[9px] font-mono font-semibold bg-blue-950/80 text-blue-300 border border-blue-700/50 rounded">Development / Play Hub</span>
                   <span className="text-[10px] font-mono text-slate-400 hidden md:inline">
                     Node: <span className="text-blue-400 font-medium">game.onegodian.com</span>
                   </span>
@@ -98,7 +92,6 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, progres
             </button>
           </div>
 
-          {/* Desktop Nav Items */}
           <nav className="hidden xl:flex items-center space-x-1">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -121,9 +114,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, progres
             })}
           </nav>
 
-          {/* Right Action Badges & Audio Controls */}
           <div className="flex items-center gap-2">
-            {/* Quick Stats Pill */}
             <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 bg-[#11131a] border border-[#1e2230] rounded font-mono text-xs">
               <div className="flex items-center gap-1 text-amber-400">
                 <span className="text-[10px]">◈</span>
@@ -138,7 +129,6 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, progres
               </div>
             </div>
 
-            {/* Theme Toggle (Light / Dark Mode) */}
             <button
               id="theme-toggle-btn"
               onClick={toggleTheme}
@@ -146,14 +136,9 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, progres
               className="p-1.5 rounded bg-[#11131a] border border-[#1e2230] text-slate-400 hover:text-amber-400 dark:hover:text-amber-300 hover:border-amber-500/50 transition-colors"
               title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
-              {theme === 'dark' ? (
-                <Sun className="w-3.5 h-3.5 text-amber-400" />
-              ) : (
-                <Moon className="w-3.5 h-3.5 text-indigo-600" />
-              )}
+              {theme === 'dark' ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-indigo-600" />}
             </button>
 
-            {/* Audio Toggle */}
             <button
               id="audio-toggle-btn"
               onClick={toggleSound}
@@ -164,19 +149,17 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, progres
               {isMuted ? <VolumeX className="w-3.5 h-3.5 text-rose-400" /> : <Volume2 className="w-3.5 h-3.5 text-blue-400" />}
             </button>
 
-            {/* Quick Launch CTA */}
-            {activeTab !== 'prototype' && (
+            {activeTab !== 'development-status' && (
               <button
-                id="header-play-cta"
-                onClick={() => handleTabClick('prototype')}
+                id="header-status-cta"
+                onClick={() => handleTabClick('development-status')}
                 className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs font-mono shadow-sm shadow-blue-500/25 transition-all"
               >
-                <Gamepad2 className="w-3.5 h-3.5" />
-                <span>Play V1</span>
+                <GitBranch className="w-3.5 h-3.5" />
+                <span>Build Status</span>
               </button>
             )}
 
-            {/* Mobile Menu Toggle */}
             <button
               id="mobile-nav-toggle"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -189,7 +172,6 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, progres
         </div>
       </div>
 
-      {/* Mobile Nav Dropdown */}
       {mobileMenuOpen && (
         <div className="xl:hidden bg-[#0c0e14]/98 border-b border-[#1e2230] px-4 pt-2 pb-4 space-y-1 backdrop-blur-xl">
           <div className="py-1.5 px-2.5 mb-2 bg-[#11131a] rounded border border-[#1e2230] flex items-center justify-between font-mono text-xs">
@@ -201,15 +183,9 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, progres
                 className="px-2 py-0.5 rounded bg-[#161821] hover:bg-[#1f2330] border border-[#1e2230] text-[11px] font-semibold flex items-center gap-1.5 transition-colors"
               >
                 {theme === 'dark' ? (
-                  <>
-                    <Sun className="w-3 h-3 text-amber-400" />
-                    <span>Dark (Switch to Light)</span>
-                  </>
+                  <><Sun className="w-3 h-3 text-amber-400" /><span>Dark (Switch to Light)</span></>
                 ) : (
-                  <>
-                    <Moon className="w-3 h-3 text-indigo-600" />
-                    <span>Light (Switch to Dark)</span>
-                  </>
+                  <><Moon className="w-3 h-3 text-indigo-600" /><span>Light (Switch to Dark)</span></>
                 )}
               </button>
             </div>
