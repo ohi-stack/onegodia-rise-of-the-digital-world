@@ -6,6 +6,7 @@
 
 export type NavigationTab =
   | 'home'
+  | 'development-status'
   | 'prototype'
   | 'gameplay-grid'
   | 'tactical-hud'
