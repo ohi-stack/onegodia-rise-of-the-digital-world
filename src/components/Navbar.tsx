@@ -17,7 +17,8 @@ import {
   Radio,
   Sun,
   Moon,
-  GitBranch
+  GitBranch,
+  Play
 } from 'lucide-react';
 import { NavigationTab, PlayerProgress } from '../types';
 import { sound } from '../services/audioService';
@@ -48,6 +49,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, progres
 
   const navItems: { id: NavigationTab; label: string; icon: React.FC<{ className?: string }> }[] = [
     { id: 'home', label: 'Home', icon: Radio },
+    { id: 'play', label: 'Play Stamford', icon: Play },
     { id: 'development-status', label: 'Development Status', icon: GitBranch },
     { id: 'prototype', label: 'Web Prototype', icon: Gamepad2 },
     { id: 'map', label: 'World Map', icon: MapIcon },
@@ -149,14 +151,14 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, progres
               {isMuted ? <VolumeX className="w-3.5 h-3.5 text-rose-400" /> : <Volume2 className="w-3.5 h-3.5 text-blue-400" />}
             </button>
 
-            {activeTab !== 'development-status' && (
+            {activeTab !== 'play' && (
               <button
-                id="header-status-cta"
-                onClick={() => handleTabClick('development-status')}
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs font-mono shadow-sm shadow-blue-500/25 transition-all"
+                id="header-play-cta"
+                onClick={() => handleTabClick('play')}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded bg-cyan-500 hover:bg-cyan-400 text-black font-black text-xs font-mono shadow-sm shadow-cyan-500/25 transition-all"
               >
-                <GitBranch className="w-3.5 h-3.5" />
-                <span>Build Status</span>
+                <Play className="w-3.5 h-3.5" />
+                <span>Play</span>
               </button>
             )}
 
