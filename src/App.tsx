@@ -16,6 +16,7 @@ import { ComplianceBanner } from './components/ComplianceBanner';
 
 // Views
 import { HomeView } from './views/HomeView';
+import { PlayView } from './views/PlayView';
 import { DevelopmentStatusView } from './views/DevelopmentStatusView';
 import { PrototypeView } from './views/PrototypeView';
 import { GameplayGridView } from './views/GameplayGridView';
@@ -122,6 +123,10 @@ export default function App() {
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
           {activeTab === 'home' && (
             <HomeView setActiveTab={setActiveTab} progress={progress} mission={mission} />
+          )}
+
+          {activeTab === 'play' && (
+            <PlayView progress={progress} setProgress={setProgress} />
           )}
 
           {activeTab === 'development-status' && <DevelopmentStatusView />}
