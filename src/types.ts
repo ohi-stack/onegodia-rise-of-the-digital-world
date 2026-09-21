@@ -17,6 +17,7 @@ export type NavigationTab =
   | 'missions'
   | 'inventory'
   | 'digital-asset-economy'
+  | 'businesses'
   | 'developers'
   | 'community'
   | 'web-doc'
