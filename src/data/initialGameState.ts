@@ -11,6 +11,7 @@ export const INITIAL_MISSION_001: Mission = {
   rewardItemRarity: 'Foundational',
   status: 'Available',
   currentObjectiveIndex: 0,
+  pinnedObjectiveIds: ['obj-1', 'obj-2'],
   briefingDialogue: 'Citizen, Onegodia signal interference has appeared near the Sector 7 digital node. Reach the marked location, scan the digital fragment, and return it to the Hub to stabilize our grid.',
   completionDialogue: 'Outstanding work, Citizen! Signal restored to nominal power. Onegodia Data Fragment #001 has been added to your digital archive. This is only the beginning of our world reconstruction.',
   objectives: [
@@ -19,6 +20,7 @@ export const INITIAL_MISSION_001: Mission = {
       stepNumber: 1,
       description: 'Speak to Mission Guide (Aria Pulse) at Onegodia Hub',
       isCompleted: false,
+      isPinnedToHUD: true,
       targetCoordinates: { x: 220, y: 380 },
       targetZone: 'Onegodia Hub Plaza',
       rewards: [
@@ -45,6 +47,7 @@ export const INITIAL_MISSION_001: Mission = {
       stepNumber: 2,
       description: 'Travel along the neon transit corridor to Sector 7 Outpost',
       isCompleted: false,
+      isPinnedToHUD: true,
       targetCoordinates: { x: 550, y: 220 },
       targetZone: 'Sector 7 Transit Highway',
       rewards: [

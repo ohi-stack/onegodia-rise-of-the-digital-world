@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Sparkles, 
   Flag, 
@@ -115,6 +115,11 @@ export const MissionsView: React.FC<MissionsViewProps> = ({ mission, setMission,
     }));
   };
 
+  // Pinned objectives quick access list
+  const pinnedObjectives = useMemo(() => {
+    return mission.objectives.filter(obj => obj.isPinnedToHUD);
+  }, [mission.objectives]);
+
   // Toggle Pin objective to Tactical HUD
   const handleTogglePin = (objId: string) => {
     if (!setMission) return;
@@ -125,11 +130,62 @@ export const MissionsView: React.FC<MissionsViewProps> = ({ mission, setMission,
         obj.id === objId ? { ...obj, isPinnedToHUD: !isCurrentlyPinned } : obj
       );
       const pinnedIds = updated.filter(o => o.isPinnedToHUD).map(o => o.id);
-      return {
+      const nextMission = {
         ...prev,
         objectives: updated,
         pinnedObjectiveIds: pinnedIds
       };
+      try {
+        localStorage.setItem('onegodia_mission_001_v1', JSON.stringify(nextMission));
+      } catch (err) {
+        console.error(err);
+      }
+      return nextMission;
+    });
+  };
+
+  // Quick Pin active objective to HUD
+  const handlePinActiveObjective = () => {
+    if (!setMission) return;
+    sound.playClick();
+    const activeObj = mission.objectives[mission.currentObjectiveIndex] || mission.objectives[0];
+    if (!activeObj) return;
+    setMission(prev => {
+      const updated = prev.objectives.map(obj => 
+        obj.id === activeObj.id ? { ...obj, isPinnedToHUD: true } : obj
+      );
+      const pinnedIds = updated.filter(o => o.isPinnedToHUD).map(o => o.id);
+      const nextMission = {
+        ...prev,
+        objectives: updated,
+        pinnedObjectiveIds: pinnedIds
+      };
+      try {
+        localStorage.setItem('onegodia_mission_001_v1', JSON.stringify(nextMission));
+      } catch (err) {
+        console.error(err);
+      }
+      return nextMission;
+    });
+  };
+
+  // Unpin all objectives from HUD
+  const handleUnpinAll = () => {
+    if (!setMission) return;
+    sound.playClick();
+    setMission(prev => {
+      const updated = prev.objectives.map(obj => ({ ...obj, isPinnedToHUD: false }));
+      const nextMission = {
+        ...prev,
+        objectives: updated,
+        pinnedObjectiveIds: []
+      };
+      try {
+        localStorage.setItem('onegodia_mission_001_v1', JSON.stringify(nextMission));
+      } catch (err) {
+        console.error(err);
+      }
+      return nextMission;
     });
   };
 
@@ -599,6 +655,7 @@ export const MissionsView: React.FC<MissionsViewProps> = ({ mission, setMission,
       {subTab === 'log' && (
         <MissionLog
           mission={mission}
+          setMission={setMission}
           progress={progress}
           setActiveTab={setActiveTab}
         />
@@ -607,6 +664,144 @@ export const MissionsView: React.FC<MissionsViewProps> = ({ mission, setMission,
       {/* Mode 2: Directive Overview & Briefing */}
       {subTab === 'briefing' && (
         <div className="space-y-5">
+          
+          {/* HIGH-PRIORITY TACTICAL HUD QUICK-ACCESS PINNED DIRECTIVES BANNER */}
+          <div className="p-4 rounded-xl bg-[#090b10] border border-amber-500/40 shadow-xl shadow-amber-950/20 font-mono space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-[#1e2230]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/50 flex items-center justify-center text-amber-400 shrink-0">
+                  <Pin className="w-4 h-4 fill-amber-400" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-white tracking-wide flex items-center gap-1.5">
+                      <span>HIGH-PRIORITY TACTICAL HUD DIRECTIVES</span>
+                    </h3>
+                    <span className="px-2 py-0.2 rounded text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-500/50">
+                      {pinnedObjectives.length} PINNED
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 font-sans">
+                    Pinned directives are prominently projected onto the Tactical HUD radar overlay for rapid field access.
+                  </p>
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {pinnedObjectives.length < mission.objectives.length && (
+                  <button
+                    type="button"
+                    id="quick-pin-active-btn"
+                    onClick={handlePinActiveObjective}
+                    className="px-2.5 py-1 rounded bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 text-blue-300 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                    title="Quick-pin active milestone to HUD"
+                  >
+                    <Pin className="w-3 h-3 text-blue-400" />
+                    <span>Pin Active Step</span>
+                  </button>
+                )}
+
+                {pinnedObjectives.length > 0 && (
+                  <button
+                    type="button"
+                    id="unpin-all-btn"
+                    onClick={handleUnpinAll}
+                    className="px-2 py-1 rounded bg-[#11131a] hover:bg-red-950/30 text-slate-400 hover:text-red-300 border border-[#1e2230] text-xs flex items-center gap-1 transition-colors"
+                    title="Clear all HUD pins"
+                  >
+                    <PinOff className="w-3 h-3" />
+                    <span className="hidden sm:inline">Unpin All</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  id="view-hud-from-missions-btn"
+                  onClick={() => {
+                    sound.playClick();
+                    setActiveTab('tactical-hud');
+                  }}
+                  className="px-3 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-slate-950 text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+                >
+                  <Crosshair className="w-3.5 h-3.5" />
+                  <span>View in Tactical HUD</span>
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+
+            {/* Pinned cards grid or empty state */}
+            {pinnedObjectives.length === 0 ? (
+              <div className="p-4 rounded-lg bg-[#11131a] border border-dashed border-[#1e2230] text-center text-xs text-slate-400 space-y-2">
+                <p>No objectives are currently pinned to the Tactical HUD quick-access list.</p>
+                <div className="flex items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePinActiveObjective}
+                    className="px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-colors"
+                  >
+                    <Pin className="w-3.5 h-3.5" />
+                    <span>Pin Current Directive (Step {mission.currentObjectiveIndex + 1}) to HUD</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                {pinnedObjectives.map((obj) => {
+                  const isCurrent = obj.stepNumber - 1 === mission.currentObjectiveIndex && !obj.isCompleted;
+                  return (
+                    <div
+                      key={`pinned-banner-${obj.id}`}
+                      className={`p-2.5 rounded-lg border flex items-start justify-between gap-2.5 transition-all ${
+                        isCurrent
+                          ? 'bg-blue-950/40 border-blue-500/80 shadow-md shadow-blue-950/40'
+                          : obj.isCompleted
+                          ? 'bg-emerald-950/20 border-emerald-500/40'
+                          : 'bg-[#11131a] border-amber-500/40'
+                      }`}
+                    >
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
+                            obj.isCompleted
+                              ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
+                              : isCurrent
+                              ? 'bg-blue-900 text-blue-200 border border-blue-400 animate-pulse'
+                              : 'bg-amber-950 text-amber-300 border border-amber-500/40'
+                          }`}>
+                            STEP {obj.stepNumber}
+                          </span>
+                          <span className="text-[10px] text-slate-400 truncate">
+                            {obj.targetZone || 'Sector 7 Area'}
+                          </span>
+                          {obj.targetCoordinates && (
+                            <span className="text-[9px] text-cyan-400/90 font-mono hidden sm:inline">
+                              [{obj.targetCoordinates.x}, {obj.targetCoordinates.y}]
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs font-sans text-slate-200 font-semibold line-clamp-2">
+                          {obj.description}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleTogglePin(obj.id)}
+                        className="px-2 py-1 rounded bg-[#090b10] hover:bg-red-950/40 text-amber-300 hover:text-red-300 border border-amber-500/40 hover:border-red-500/50 text-[10px] flex items-center gap-1 shrink-0 transition-colors"
+                        title="Unpin from Tactical HUD"
+                      >
+                        <PinOff className="w-3 h-3" />
+                        <span className="hidden sm:inline">Unpin</span>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Featured Active Mission: Mission 001 */}
           <div className="p-5 rounded-xl bg-[#0c0e14] border border-[#1e2230] shadow-xl space-y-5 font-mono">
             
@@ -716,11 +911,13 @@ export const MissionsView: React.FC<MissionsViewProps> = ({ mission, setMission,
                   return (
                     <div
                       key={obj.id}
-                      className={`p-3 rounded-lg border text-xs transition-colors space-y-2 ${
+                      className={`p-3 rounded-lg border text-xs transition-all space-y-2 ${
                         isDone
                           ? 'bg-emerald-950/20 border-emerald-500/40'
                           : isCurrent
-                          ? 'bg-blue-950/30 border-blue-500/60 shadow-sm'
+                          ? 'bg-blue-950/30 border-blue-500/70 shadow-sm shadow-blue-950/50'
+                          : obj.isPinnedToHUD
+                          ? 'bg-[#11131a] border-amber-500/60 shadow-sm shadow-amber-950/30 text-slate-300'
                           : 'bg-[#11131a] border-[#1e2230] text-slate-400'
                       }`}
                     >
@@ -783,26 +980,27 @@ export const MissionsView: React.FC<MissionsViewProps> = ({ mission, setMission,
                           {setMission && (
                             <button
                               type="button"
+                              id={`mission-pin-btn-${obj.id}`}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleTogglePin(obj.id);
                               }}
-                              className={`px-1.5 py-0.5 rounded border flex items-center gap-1 transition-all ${
+                              className={`px-2 py-0.5 rounded border flex items-center gap-1.5 transition-all ${
                                 obj.isPinnedToHUD
-                                  ? 'bg-blue-950 text-blue-300 border-blue-500/80 shadow-sm font-semibold'
-                                  : 'bg-[#090b10] text-slate-400 hover:text-slate-200 border-[#1e2230]'
+                                  ? 'bg-amber-950/90 text-amber-300 border-amber-500/80 shadow-sm shadow-amber-950/50 font-bold'
+                                  : 'bg-[#090b10] text-slate-400 hover:text-slate-200 border-[#1e2230] hover:border-slate-500'
                               }`}
-                              title={obj.isPinnedToHUD ? 'Pinned to Tactical HUD Quick Access' : 'Pin to Tactical HUD'}
+                              title={obj.isPinnedToHUD ? 'Pinned to Tactical HUD Quick Access (Click to Unpin)' : 'Pin to High-Priority Tactical HUD Quick Access'}
                             >
                               {obj.isPinnedToHUD ? (
                                 <>
-                                  <Pin className="w-2.5 h-2.5 text-blue-400 fill-blue-400" />
-                                  <span className="text-[9px]">HUD Pinned</span>
+                                  <Pin className="w-3 h-3 text-amber-400 fill-amber-400" />
+                                  <span className="text-[10px]">Pinned to HUD</span>
                                 </>
                               ) : (
                                 <>
-                                  <Pin className="w-2.5 h-2.5" />
-                                  <span className="text-[9px]">Pin</span>
+                                  <Pin className="w-3 h-3 text-slate-400" />
+                                  <span className="text-[10px]">Pin to HUD</span>
                                 </>
                               )}
                             </button>

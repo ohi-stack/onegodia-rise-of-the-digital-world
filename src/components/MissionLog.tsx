@@ -21,13 +21,16 @@ import {
   Zap,
   Shield,
   Trophy,
-  Package
+  Package,
+  Pin,
+  PinOff
 } from 'lucide-react';
 import { Mission, MissionObjective, PlayerProgress, NavigationTab, ObjectiveReward } from '../types';
 import { sound } from '../services/audioService';
 
 interface MissionLogProps {
   mission: Mission;
+  setMission?: React.Dispatch<React.SetStateAction<Mission>>;
   progress?: PlayerProgress;
   setActiveTab?: (tab: NavigationTab) => void;
 }
@@ -36,6 +39,7 @@ type ObjectiveFilter = 'all' | 'completed' | 'active' | 'upcoming';
 
 export const MissionLog: React.FC<MissionLogProps> = ({
   mission,
+  setMission,
   progress,
   setActiveTab
 }) => {
@@ -44,6 +48,30 @@ export const MissionLog: React.FC<MissionLogProps> = ({
   const [expandedObjId, setExpandedObjId] = useState<string | null>(
     mission.objectives[mission.currentObjectiveIndex]?.id || null
   );
+
+  const handleTogglePin = (objId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!setMission) return;
+    sound.playClick();
+    setMission(prev => {
+      const isCurrentlyPinned = prev.objectives.find(o => o.id === objId)?.isPinnedToHUD;
+      const updated = prev.objectives.map(obj => 
+        obj.id === objId ? { ...obj, isPinnedToHUD: !isCurrentlyPinned } : obj
+      );
+      const pinnedIds = updated.filter(o => o.isPinnedToHUD).map(o => o.id);
+      const nextMission = {
+        ...prev,
+        objectives: updated,
+        pinnedObjectiveIds: pinnedIds
+      };
+      try {
+        localStorage.setItem('onegodia_mission_001_v1', JSON.stringify(nextMission));
+      } catch (err) {
+        console.error(err);
+      }
+      return nextMission;
+    });
+  };
 
   const completedCount = mission.objectives.filter(o => o.isCompleted).length;
   const totalCount = mission.objectives.length;
@@ -311,10 +339,35 @@ export const MissionLog: React.FC<MissionLogProps> = ({
                     </div>
                   </div>
 
-                  {/* Zone & Expand Toggle */}
-                  <div className="flex items-center gap-3 shrink-0">
+                  {/* Zone, Pin Toggle & Expand Toggle */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {/* HUD Pin Button */}
+                    <button
+                      type="button"
+                      id={`log-pin-btn-${obj.id}`}
+                      title={obj.isPinnedToHUD ? "Pinned to Tactical HUD (Click to Unpin)" : "Pin to High-Priority Tactical HUD Quick-Access"}
+                      onClick={(e) => handleTogglePin(obj.id, e)}
+                      className={`px-2 py-1 rounded text-[10px] font-mono flex items-center gap-1 transition-all ${
+                        obj.isPinnedToHUD
+                          ? 'bg-amber-950/90 text-amber-300 border border-amber-500/70 shadow-sm shadow-amber-950/60 font-bold'
+                          : 'bg-[#11131a] text-slate-400 border border-[#1e2230] hover:text-slate-200 hover:border-slate-600'
+                      }`}
+                    >
+                      {obj.isPinnedToHUD ? (
+                        <>
+                          <Pin className="w-3 h-3 text-amber-400 fill-amber-400" />
+                          <span className="hidden xs:inline">Pinned to HUD</span>
+                        </>
+                      ) : (
+                        <>
+                          <Pin className="w-3 h-3 text-slate-400" />
+                          <span className="hidden sm:inline">Pin to HUD</span>
+                        </>
+                      )}
+                    </button>
+
                     {obj.targetZone && (
-                      <div className="hidden sm:flex items-center gap-1 font-mono text-[10px] text-slate-400 bg-[#11131a] px-2 py-0.5 rounded border border-[#1e2230]">
+                      <div className="hidden md:flex items-center gap-1 font-mono text-[10px] text-slate-400 bg-[#11131a] px-2 py-0.5 rounded border border-[#1e2230]">
                         <MapPin className="w-3 h-3 text-blue-400" />
                         <span>{obj.targetZone}</span>
                       </div>
@@ -411,28 +464,81 @@ export const MissionLog: React.FC<MissionLogProps> = ({
                       </div>
                     )}
 
-                    {/* Action Hint */}
-                    {isCurrent && (
-                      <div className="p-2.5 rounded-lg bg-blue-950/30 border border-blue-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div className="text-[11px] text-blue-200 font-sans flex items-center gap-1.5">
-                          <Sparkles className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                          <span><strong>Tactical Tip:</strong> Navigate to the coordinates in Game V1 and hold [E] or tap the Action button to advance.</span>
-                        </div>
+                    {/* Action Bar & HUD Controls */}
+                    <div className="p-2.5 rounded-lg bg-[#11131a] border border-[#1e2230] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div className="text-[11px] text-slate-300 font-sans flex items-center gap-2">
+                        {obj.isPinnedToHUD ? (
+                          <span className="inline-flex items-center gap-1.5 text-amber-300 font-mono text-[10px] bg-amber-950/80 px-2 py-0.5 rounded border border-amber-500/50">
+                            <Pin className="w-3 h-3 text-amber-400 fill-amber-400" />
+                            <span>Pinned to Tactical HUD Quick-Access</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 text-slate-400 font-mono text-[10px]">
+                            <Pin className="w-3 h-3 text-slate-500" />
+                            <span>Standard Milestone (Not Pinned)</span>
+                          </span>
+                        )}
+                        {isCurrent && (
+                          <span className="text-blue-300 hidden md:inline text-[11px]">
+                            • Active objective in Sector 7
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-wrap shrink-0">
+                        {/* Pin / Unpin Button */}
+                        <button
+                          type="button"
+                          id={`drawer-pin-toggle-${obj.id}`}
+                          onClick={(e) => handleTogglePin(obj.id, e)}
+                          className={`px-2.5 py-1 rounded text-[10px] font-mono font-bold flex items-center gap-1.5 transition-colors ${
+                            obj.isPinnedToHUD
+                              ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-sm shadow-amber-500/40'
+                              : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                          }`}
+                        >
+                          {obj.isPinnedToHUD ? (
+                            <>
+                              <PinOff className="w-3 h-3 text-slate-950" />
+                              <span>Unpin from HUD</span>
+                            </>
+                          ) : (
+                            <>
+                              <Pin className="w-3 h-3 text-amber-400" />
+                              <span>Pin to Tactical HUD</span>
+                            </>
+                          )}
+                        </button>
+
                         {setActiveTab && (
+                          <button
+                            id={`goto-tactical-hud-${obj.id}`}
+                            onClick={() => {
+                              sound.playClick();
+                              setActiveTab('tactical-hud');
+                            }}
+                            className="px-2.5 py-1 rounded bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/50 text-cyan-300 text-[10px] font-mono flex items-center gap-1 transition-colors"
+                          >
+                            <span>Tactical HUD</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                        )}
+
+                        {isCurrent && setActiveTab && (
                           <button
                             id={`goto-obj-btn-${obj.id}`}
                             onClick={() => {
                               sound.playClick();
                               setActiveTab('prototype');
                             }}
-                            className="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold text-[10px] font-mono flex items-center gap-1 shrink-0 transition-colors"
+                            className="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold text-[10px] font-mono flex items-center gap-1 transition-colors"
                           >
                             <span>Open In-Game</span>
                             <ArrowRight className="w-3 h-3" />
                           </button>
                         )}
                       </div>
-                    )}
+                    </div>
 
                   </div>
                 )}

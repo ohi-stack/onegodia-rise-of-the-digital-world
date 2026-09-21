@@ -16,6 +16,7 @@ import {
   Car,
   Clock,
   Pin,
+  PinOff,
   CheckCircle2,
   Layers,
   ArrowRight,
@@ -35,9 +36,10 @@ import {
   Check,
   Timer,
   Save,
-  Trophy
+  Trophy,
+  Gift
 } from 'lucide-react';
-import { PlayerProgress, Mission, NavigationTab, PlayerState } from '../types';
+import { PlayerProgress, Mission, MissionObjective, NavigationTab, PlayerState } from '../types';
 import { sound } from '../services/audioService';
 import { saveMissionHistoryEntry } from '../services/historyService';
 import { 
@@ -251,6 +253,74 @@ export const TacticalHUDView: React.FC<TacticalHUDViewProps> = ({
   const pinnedObjectives = useMemo(() => {
     return mission.objectives.filter(obj => obj.isPinnedToHUD);
   }, [mission.objectives]);
+
+  // Toggle Pin on an objective directly from HUD
+  const handleTogglePinHUD = (objId: string) => {
+    if (!setMission) return;
+    sound.playClick();
+    const isCurrentlyPinned = mission.objectives.find(o => o.id === objId)?.isPinnedToHUD;
+    const updated = mission.objectives.map(obj =>
+      obj.id === objId ? { ...obj, isPinnedToHUD: !isCurrentlyPinned } : obj
+    );
+    const pinnedIds = updated.filter(o => o.isPinnedToHUD).map(o => o.id);
+    const updatedMission: Mission = {
+      ...mission,
+      objectives: updated,
+      pinnedObjectiveIds: pinnedIds
+    };
+    persistMissionState(updatedMission);
+    setSaveToast(isCurrentlyPinned ? `Directive #${objId} Unpinned from HUD` : `Directive #${objId} Pinned to High-Priority HUD`);
+    setTimeout(() => setSaveToast(null), 2500);
+  };
+
+  // Quick Pin active directive to HUD
+  const handlePinCurrentActive = () => {
+    if (!setMission) return;
+    sound.playClick();
+    const activeObj = mission.objectives[mission.currentObjectiveIndex] || mission.objectives[0];
+    if (!activeObj) return;
+    const updated = mission.objectives.map(obj =>
+      obj.id === activeObj.id ? { ...obj, isPinnedToHUD: true } : obj
+    );
+    const pinnedIds = updated.filter(o => o.isPinnedToHUD).map(o => o.id);
+    const updatedMission: Mission = {
+      ...mission,
+      objectives: updated,
+      pinnedObjectiveIds: pinnedIds
+    };
+    persistMissionState(updatedMission);
+    setSaveToast(`Active Directive (Step #${activeObj.stepNumber}) Pinned to High-Priority HUD`);
+    setTimeout(() => setSaveToast(null), 3000);
+  };
+
+  // Unpin all objectives from HUD
+  const handleUnpinAllHUD = () => {
+    if (!setMission) return;
+    sound.playClick();
+    const updated = mission.objectives.map(obj => ({ ...obj, isPinnedToHUD: false }));
+    const updatedMission: Mission = {
+      ...mission,
+      objectives: updated,
+      pinnedObjectiveIds: []
+    };
+    persistMissionState(updatedMission);
+    setSaveToast('All Directives Unpinned from HUD Quick-Access');
+    setTimeout(() => setSaveToast(null), 2500);
+  };
+
+  // Warp directly to objective coordinates from HUD
+  const handleWarpToObjective = (obj: MissionObjective) => {
+    sound.playWarp();
+    if (obj.targetCoordinates) {
+      setPlayerCoords(obj.targetCoordinates);
+    }
+    if (obj.targetZone) {
+      setActiveZone(obj.targetZone);
+    }
+    if (resetMessage) setResetMessage(null);
+    setSaveToast(`Tactical Warp Calibrated to: ${obj.targetZone || 'Objective Waypoint'}`);
+    setTimeout(() => setSaveToast(null), 3000);
+  };
 
   // Rotate radar sweep
   useEffect(() => {
@@ -623,6 +693,226 @@ export const TacticalHUDView: React.FC<TacticalHUDViewProps> = ({
         </div>
       )}
 
+      {/* PROMINENT HIGH-PRIORITY HUD QUICK-ACCESS DIRECTIVES MATRIX */}
+      <div 
+        id="hud-priority-objectives-matrix"
+        className="p-4 rounded-xl bg-[#07090e] border border-cyan-500/50 shadow-[0_0_25px_rgba(0,255,255,0.12)] font-mono space-y-3 relative overflow-hidden"
+      >
+        {/* Subtle grid background */}
+        <div className="absolute inset-0 gamer-grid opacity-15 pointer-events-none"></div>
+
+        {/* Header Bar */}
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-cyan-900/60">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-cyan-950 border border-cyan-400/80 flex items-center justify-center text-cyan-300 shadow-[0_0_12px_rgba(0,255,255,0.3)] shrink-0">
+              <Pin className="w-4 h-4 fill-cyan-400/80 text-cyan-200" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm font-bold text-white tracking-wider flex items-center gap-1.5">
+                  <span className="text-cyan-400">HIGH-PRIORITY DIRECTIVES</span>
+                  <span className="text-slate-500">//</span>
+                  <span className="text-amber-300 font-sans">HUD QUICK-ACCESS</span>
+                </h3>
+                <span className={`px-2 py-0.2 rounded text-[10px] font-bold border ${
+                  pinnedObjectives.length > 0 
+                    ? 'bg-cyan-950 text-cyan-300 border-cyan-500/60 shadow-[0_0_8px_rgba(0,255,255,0.3)]'
+                    : 'bg-slate-900 text-slate-400 border-slate-700'
+                }`}>
+                  {pinnedObjectives.length} ACTIVE PIN{pinnedObjectives.length === 1 ? '' : 'S'}
+                </span>
+                <span className="text-[10px] text-emerald-400 hidden md:flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                  Radar Waypoints Active
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 font-sans mt-0.5">
+                Directives pinned from Missions View projected directly onto field radar telemetry.
+              </p>
+            </div>
+          </div>
+
+          {/* Header Action Buttons */}
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
+            {pinnedObjectives.length < mission.objectives.length && (
+              <button
+                type="button"
+                id="hud-pin-active-step-btn"
+                onClick={handlePinCurrentActive}
+                className="px-2.5 py-1 rounded bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-500/60 text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+                title="Pin active milestone to HUD"
+              >
+                <Pin className="w-3 h-3 text-cyan-400 fill-cyan-400" />
+                <span>Pin Step #{mission.currentObjectiveIndex + 1}</span>
+              </button>
+            )}
+
+            {pinnedObjectives.length > 0 && (
+              <button
+                type="button"
+                id="hud-unpin-all-btn"
+                onClick={handleUnpinAllHUD}
+                className="px-2 py-1 rounded bg-[#0f121d] hover:bg-red-950/40 text-slate-400 hover:text-red-300 border border-[#1e2230] text-xs flex items-center gap-1 transition-colors"
+                title="Clear all pinned directives"
+              >
+                <PinOff className="w-3 h-3" />
+                <span className="hidden sm:inline">Clear Pins</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              id="hud-open-missions-btn"
+              onClick={() => {
+                sound.playClick();
+                setActiveTab('missions');
+              }}
+              className="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+            >
+              <span>Manage in Missions</span>
+              <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+
+        {/* Pinned Objectives Cards or Empty Callout */}
+        {pinnedObjectives.length === 0 ? (
+          <div className="relative z-10 p-3.5 rounded-lg bg-[#0c0f18] border border-dashed border-cyan-500/30 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-full bg-cyan-950/80 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shrink-0">
+                <Crosshair className="w-3.5 h-3.5" />
+              </div>
+              <div>
+                <span className="text-slate-300 font-bold">No active directives pinned to HUD.</span>
+                <p className="text-slate-400 font-sans text-[11px]">
+                  Current directive in Sector 7 is <strong>Step {mission.currentObjectiveIndex + 1}: {mission.objectives[mission.currentObjectiveIndex]?.description}</strong>.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handlePinCurrentActive}
+                className="px-3 py-1.5 rounded bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-colors shadow-md shadow-cyan-500/20"
+              >
+                <Pin className="w-3.5 h-3.5 fill-slate-950" />
+                <span>Pin Step {mission.currentObjectiveIndex + 1} to HUD</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {pinnedObjectives.map((obj) => {
+              const isCurrent = obj.stepNumber - 1 === mission.currentObjectiveIndex && !obj.isCompleted;
+              const isDone = obj.isCompleted;
+
+              return (
+                <div
+                  key={`hud-top-card-${obj.id}`}
+                  className={`p-3 rounded-lg border transition-all flex flex-col justify-between gap-2.5 ${
+                    isCurrent
+                      ? 'bg-[#091424] border-cyan-400 shadow-[0_0_15px_rgba(0,255,255,0.25)]'
+                      : isDone
+                      ? 'bg-[#071612] border-emerald-500/50'
+                      : 'bg-[#0b0e17] border-slate-700/80 hover:border-cyan-500/50'
+                  }`}
+                >
+                  <div className="space-y-1.5">
+                    {/* Card Top Row: Step Tag + Status Badge + Unpin */}
+                    <div className="flex items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
+                          isDone
+                            ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/60'
+                            : isCurrent
+                            ? 'bg-cyan-950 text-cyan-300 border border-cyan-400 shadow-[0_0_8px_rgba(0,255,255,0.4)]'
+                            : 'bg-slate-900 text-slate-300 border border-slate-700'
+                        }`}>
+                          STEP {obj.stepNumber}
+                        </span>
+
+                        {isCurrent && (
+                          <span className="px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-300 border border-cyan-400/60 text-[9px] font-bold flex items-center gap-1 animate-pulse">
+                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                            ACTIVE
+                          </span>
+                        )}
+
+                        {isDone && (
+                          <span className="px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/50 text-[9px] font-bold flex items-center gap-1">
+                            <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
+                            CLEARED
+                          </span>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        id={`hud-unpin-${obj.id}`}
+                        onClick={() => handleTogglePinHUD(obj.id)}
+                        className="px-1.5 py-0.5 rounded bg-slate-900/80 hover:bg-red-950/60 text-slate-400 hover:text-red-300 border border-slate-800 hover:border-red-500/50 text-[10px] flex items-center gap-1 transition-colors"
+                        title="Unpin from HUD"
+                      >
+                        <PinOff className="w-3 h-3" />
+                        <span className="hidden sm:inline">Unpin</span>
+                      </button>
+                    </div>
+
+                    {/* Objective Description */}
+                    <h4 className={`text-xs font-semibold font-sans leading-snug line-clamp-2 ${
+                      isCurrent ? 'text-white' : isDone ? 'text-slate-300' : 'text-slate-400'
+                    }`}>
+                      {obj.description}
+                    </h4>
+
+                    {/* Waypoint Telemetry Info */}
+                    <div className="flex items-center gap-2 text-[10px] text-slate-400 pt-0.5">
+                      <div className="flex items-center gap-1 text-cyan-300 truncate">
+                        <MapPin className="w-3 h-3 shrink-0 text-cyan-400" />
+                        <span className="truncate">{obj.targetZone || 'Sector 7'}</span>
+                      </div>
+                      {obj.targetCoordinates && (
+                        <span className="text-[9px] font-mono text-cyan-400/80 shrink-0 bg-cyan-950/60 px-1.5 py-0.2 rounded border border-cyan-800/40">
+                          X:{obj.targetCoordinates.x} Y:{obj.targetCoordinates.y}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Card Bottom: Milestone Reward Chip & Quick Warp Button */}
+                  <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                    <div className="text-[10px] text-amber-300 font-mono truncate flex items-center gap-1">
+                      {obj.rewards && obj.rewards.length > 0 && (
+                        <>
+                          <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
+                          <span className="truncate">{obj.rewards[0].name}</span>
+                          {obj.rewards[0].type === 'credits' && (
+                            <span className="text-amber-400 font-bold">(+{obj.rewards[0].amount} CR)</span>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    {obj.targetCoordinates && (
+                      <button
+                        type="button"
+                        id={`hud-warp-to-${obj.id}`}
+                        onClick={() => handleWarpToObjective(obj)}
+                        className="px-2 py-0.5 rounded bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/50 text-[10px] font-bold flex items-center gap-1 shrink-0 transition-colors"
+                        title="Calibrate Radar & Warp to Objective Waypoint"
+                      >
+                        <Navigation className="w-2.5 h-2.5 text-cyan-400" />
+                        <span>Warp Waypoint</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Main HUD Display Area */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         
@@ -720,6 +1010,75 @@ export const TacticalHUDView: React.FC<TacticalHUDViewProps> = ({
                       )}
                     </div>
                   </button>
+                );
+              })}
+
+              {/* PINNED OBJECTIVE RADAR WAYPOINT BEACONS */}
+              {pinnedObjectives.map((pObj) => {
+                if (!pObj.targetCoordinates) return null;
+                const isCurrent = pObj.stepNumber - 1 === mission.currentObjectiveIndex && !pObj.isCompleted;
+                const isDone = pObj.isCompleted;
+
+                return (
+                  <div
+                    key={`radar-pin-marker-${pObj.id}`}
+                    id={`radar-pin-marker-${pObj.id}`}
+                    className="group absolute -translate-x-1/2 -translate-y-1/2 z-25 cursor-pointer focus:outline-none"
+                    style={{
+                      left: `${(pObj.targetCoordinates.x / 1200) * 100}%`,
+                      top: `${(pObj.targetCoordinates.y / 800) * 100}%`,
+                    }}
+                    onClick={() => handleWarpToObjective(pObj)}
+                    title={`Pinned Directive: Step ${pObj.stepNumber} - ${pObj.description}`}
+                  >
+                    {/* Pulsing Beacon Ring */}
+                    <div className={`absolute -inset-2 rounded-full border pointer-events-none animate-ping ${
+                      isDone
+                        ? 'border-emerald-400/40 bg-emerald-400/10'
+                        : isCurrent 
+                        ? 'border-cyan-400 bg-cyan-400/30' 
+                        : 'border-amber-400 bg-amber-400/20'
+                    }`}></div>
+                    
+                    <div className={`w-5 h-5 rounded-md border flex items-center justify-center shadow-lg transition-transform group-hover:scale-125 ${
+                      isDone
+                        ? 'bg-emerald-950 border-emerald-400 text-emerald-300 shadow-[0_0_10px_rgba(52,211,153,0.6)]'
+                        : isCurrent 
+                        ? 'bg-cyan-950 border-cyan-400 text-cyan-300 shadow-[0_0_15px_rgba(0,255,255,0.9)] animate-pulse' 
+                        : 'bg-amber-950 border-amber-400 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.7)]'
+                    }`}>
+                      <Pin className="w-3 h-3 fill-current" />
+                    </div>
+
+                    {/* Step label pill */}
+                    <div className={`absolute -top-5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded font-mono text-[9px] font-bold border whitespace-nowrap shadow-md pointer-events-none ${
+                      isDone
+                        ? 'bg-emerald-950/90 text-emerald-300 border-emerald-500/60'
+                        : isCurrent
+                        ? 'bg-cyan-950/90 text-cyan-200 border-cyan-400'
+                        : 'bg-amber-950/90 text-amber-300 border-amber-500/60'
+                    }`}>
+                      #{pObj.stepNumber} PIN
+                    </div>
+
+                    {/* Extended Tooltip on hover */}
+                    <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-[#050608] border border-cyan-500/80 px-2.5 py-1 rounded text-[10px] font-mono whitespace-nowrap text-cyan-100 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-35 shadow-xl shadow-cyan-950/90 space-y-0.5 min-w-[140px]">
+                      <div className="flex items-center justify-between gap-1.5 border-b border-cyan-900 pb-0.5">
+                        <span className="font-bold text-amber-400">DIRECTIVE STEP {pObj.stepNumber}</span>
+                        <span className="text-[9px] text-slate-400">{isDone ? 'COMPLETE' : isCurrent ? 'ACTIVE' : 'QUEUED'}</span>
+                      </div>
+                      <div className="text-[10px] text-slate-200 font-sans leading-tight whitespace-normal max-w-[180px]">
+                        {pObj.description}
+                      </div>
+                      <div className="text-[9px] text-cyan-300 font-mono flex items-center justify-between pt-0.5">
+                        <span>{pObj.targetZone}</span>
+                        <span>[{pObj.targetCoordinates.x}, {pObj.targetCoordinates.y}]</span>
+                      </div>
+                      <div className="text-[8px] text-amber-400 pt-0.5 text-center italic">
+                        Click beacon to warp telemetry
+                      </div>
+                    </div>
+                  </div>
                 );
               })}
 
@@ -1161,56 +1520,111 @@ export const TacticalHUDView: React.FC<TacticalHUDViewProps> = ({
           </div>
 
           {/* Quick-Access HUD Pinned Objectives List */}
-          <div className="p-3.5 rounded-xl bg-[#0c0e14] border border-[#1e2230] space-y-2 text-slate-300">
+          <div className="p-3.5 rounded-xl bg-[#0c0e14] border border-cyan-500/50 shadow-md space-y-2 text-slate-300 font-mono">
             <div className="flex items-center justify-between text-slate-200">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-blue-400 uppercase">
-                <Pin className="w-3.5 h-3.5 text-blue-400" />
-                <span>Quick-Access HUD List</span>
+              <div className="flex items-center gap-1.5 text-xs font-bold text-cyan-400 uppercase">
+                <Pin className="w-3.5 h-3.5 text-cyan-400 fill-cyan-400" />
+                <span>Quick-Access HUD Pins</span>
               </div>
-              <span className="text-[10px] text-slate-400">
-                {pinnedObjectives.length > 0 ? `${pinnedObjectives.length} Pinned` : 'Auto-tracking'}
-              </span>
+              <div className="flex items-center gap-1">
+                {pinnedObjectives.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleUnpinAllHUD}
+                    className="text-[9px] text-slate-400 hover:text-red-300 font-mono px-1 rounded hover:bg-red-950/40"
+                    title="Clear HUD Pins"
+                  >
+                    Clear All
+                  </button>
+                )}
+                <span className="text-[10px] text-cyan-300 bg-cyan-950/80 px-1.5 py-0.2 rounded border border-cyan-800">
+                  {pinnedObjectives.length} Pinned
+                </span>
+              </div>
             </div>
 
             {pinnedObjectives.length > 0 ? (
               <div className="space-y-1.5">
-                {pinnedObjectives.map((obj) => (
-                  <div
-                    key={obj.id}
-                    className={`p-2 rounded-lg border text-xs flex items-center justify-between gap-2 transition-colors ${
-                      obj.isCompleted
-                        ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-300'
-                        : 'bg-[#11131a] border-blue-500/40 text-slate-200'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                        obj.isCompleted ? 'bg-emerald-500 text-slate-950' : 'bg-blue-500 text-white'
-                      }`}>
-                        {obj.isCompleted ? <CheckCircle2 className="w-3 h-3" /> : obj.stepNumber}
+                {pinnedObjectives.map((obj) => {
+                  const isCurrent = obj.stepNumber - 1 === mission.currentObjectiveIndex && !obj.isCompleted;
+                  return (
+                    <div
+                      key={`side-pin-${obj.id}`}
+                      className={`p-2 rounded-lg border text-xs flex flex-col gap-1.5 transition-all ${
+                        obj.isCompleted
+                          ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-300'
+                          : isCurrent
+                          ? 'bg-cyan-950/30 border-cyan-500/60 shadow-sm text-slate-100'
+                          : 'bg-[#11131a] border-[#1e2230] text-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1.5">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                            obj.isCompleted 
+                              ? 'bg-emerald-500 text-slate-950' 
+                              : isCurrent 
+                              ? 'bg-cyan-400 text-slate-950' 
+                              : 'bg-slate-800 text-slate-300'
+                          }`}>
+                            {obj.isCompleted ? <CheckCircle2 className="w-3 h-3" /> : obj.stepNumber}
+                          </div>
+                          <span className="font-sans text-[11px] truncate font-semibold">{obj.description}</span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePinHUD(obj.id)}
+                          className="p-1 text-slate-500 hover:text-red-400 shrink-0 transition-colors"
+                          title="Unpin"
+                        >
+                          <PinOff className="w-3 h-3" />
+                        </button>
                       </div>
-                      <span className="font-sans text-[11px] truncate">{obj.description}</span>
+
+                      <div className="flex items-center justify-between text-[9px] text-slate-400 pt-1 border-t border-[#1e2230]/60">
+                        <span className="truncate">{obj.targetZone}</span>
+                        {obj.targetCoordinates && (
+                          <button
+                            type="button"
+                            onClick={() => handleWarpToObjective(obj)}
+                            className="text-cyan-400 hover:text-cyan-300 font-mono flex items-center gap-0.5 hover:underline"
+                          >
+                            <Navigation className="w-2.5 h-2.5" />
+                            <span>[{obj.targetCoordinates.x}, {obj.targetCoordinates.y}]</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <span className="text-[9px] font-mono text-slate-400 shrink-0">{obj.targetZone}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
-              <div className="p-2.5 rounded-lg bg-[#11131a] border border-dashed border-[#1e2230] text-center space-y-1">
+              <div className="p-2.5 rounded-lg bg-[#11131a] border border-dashed border-[#1e2230] text-center space-y-2">
                 <p className="text-[11px] text-slate-400 font-sans">
                   No specific objectives pinned. Tracking active directive #{mission.currentObjectiveIndex + 1}.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    sound.playClick();
-                    setActiveTab('missions');
-                  }}
-                  className="text-blue-400 hover:text-blue-300 text-[10px] font-mono underline inline-flex items-center gap-1"
-                >
-                  <span>Pin objectives in Missions View</span>
-                  <ArrowRight className="w-2.5 h-2.5" />
-                </button>
+                <div className="flex flex-col gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handlePinCurrentActive}
+                    className="w-full py-1 rounded bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/40 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors"
+                  >
+                    <Pin className="w-2.5 h-2.5" />
+                    <span>Pin Step #{mission.currentObjectiveIndex + 1} to HUD</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      setActiveTab('missions');
+                    }}
+                    className="text-blue-400 hover:text-blue-300 text-[10px] font-mono underline inline-flex items-center justify-center gap-1"
+                  >
+                    <span>Manage in Missions View</span>
+                    <ArrowRight className="w-2.5 h-2.5" />
+                  </button>
+                </div>
               </div>
             )}
           </div>
