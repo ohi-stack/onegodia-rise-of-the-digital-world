@@ -6,6 +6,7 @@
 
 export type NavigationTab =
   | 'home'
+  | 'mvp-v1'
   | 'play'
   | 'development-status'
   | 'prototype'
