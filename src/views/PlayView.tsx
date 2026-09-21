@@ -205,7 +205,8 @@ export const PlayView: React.FC<PlayViewProps> = ({ progress, setProgress }) => 
           </div>
           <div className="flex gap-2 text-[10px]">
             <span className="rounded border border-emerald-500/40 bg-emerald-950/30 px-2 py-1 text-emerald-300">PLAYABLE WEB V1</span>
-            <span className="rounded border border-blue-500/40 bg-blue-950/30 px-2 py-1 text-blue-300">UNREAL IN PARALLEL</span>\n            <span className="rounded border border-purple-500/40 bg-purple-950/30 px-2 py-1 text-purple-300">GAME SERVICES NEXT</span>
+            <span className="rounded border border-blue-500/40 bg-blue-950/30 px-2 py-1 text-blue-300">UNREAL IN PARALLEL</span>
+            <span className="rounded border border-purple-500/40 bg-purple-950/30 px-2 py-1 text-purple-300">GAME SERVICES NEXT</span>
           </div>
         </div>
       </section>
