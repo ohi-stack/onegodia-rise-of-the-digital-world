@@ -9,6 +9,7 @@ export type NavigationTab =
   | 'play'
   | 'development-status'
   | 'prototype'
+  | 'gameplay'
   | 'gameplay-grid'
   | 'tactical-hud'
   | 'map'
