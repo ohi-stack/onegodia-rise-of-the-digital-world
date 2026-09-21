@@ -26,6 +26,7 @@ import { TacticalHUDView } from './views/TacticalHUDView';
 import { MapView } from './views/MapView';
 import { MissionsView } from './views/MissionsView';
 import { InventoryView } from './views/InventoryView';
+import { DigitalAssetEconomyView } from './views/DigitalAssetEconomyView';
 import { DevelopersView } from './views/DevelopersView';
 import { CommunityView } from './views/CommunityView';
 import { WebDocView } from './views/WebDocView';
@@ -183,6 +184,8 @@ export default function App() {
           {activeTab === 'inventory' && (
             <InventoryView progress={progress} setProgress={setProgress} />
           )}
+
+          {activeTab === 'digital-asset-economy' && <DigitalAssetEconomyView />}
 
           {activeTab === 'developers' && <DevelopersView />}
           {activeTab === 'community' && <CommunityView setActiveTab={setActiveTab} />}
