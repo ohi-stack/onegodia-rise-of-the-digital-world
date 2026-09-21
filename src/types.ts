@@ -15,6 +15,7 @@ export type NavigationTab =
   | 'missions'
   | 'inventory'
   | 'developers'
+  | 'team'
   | 'community'
   | 'web-doc'
   | 'players'
