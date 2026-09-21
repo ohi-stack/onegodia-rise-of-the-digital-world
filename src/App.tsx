@@ -19,6 +19,7 @@ import { HomeView } from './views/HomeView';
 import { PlayView } from './views/PlayView';
 import { DevelopmentStatusView } from './views/DevelopmentStatusView';
 import { PrototypeView } from './views/PrototypeView';
+import { GameplayView } from './views/GameplayView';
 import { GameplayGridView } from './views/GameplayGridView';
 import { TacticalHUDView } from './views/TacticalHUDView';
 import { MapView } from './views/MapView';
@@ -140,6 +141,8 @@ export default function App() {
               setActiveTab={setActiveTab}
             />
           )}
+
+          {activeTab === 'gameplay' && <GameplayView setActiveTab={setActiveTab} />}
 
           {activeTab === 'gameplay-grid' && <GameplayGridView />}
 
