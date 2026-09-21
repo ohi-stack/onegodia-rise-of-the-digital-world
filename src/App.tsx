@@ -16,6 +16,7 @@ import { ComplianceBanner } from './components/ComplianceBanner';
 
 // Views
 import { HomeView } from './views/HomeView';
+import { MVPV1View } from './views/MVPV1View';
 import { PlayView } from './views/PlayView';
 import { DevelopmentStatusView } from './views/DevelopmentStatusView';
 import { PrototypeView } from './views/PrototypeView';
@@ -26,6 +27,7 @@ import { MapView } from './views/MapView';
 import { MissionsView } from './views/MissionsView';
 import { InventoryView } from './views/InventoryView';
 import { DevelopersView } from './views/DevelopersView';
+import { CommunityView } from './views/CommunityView';
 import { WebDocView } from './views/WebDocView';
 import { PlayersView } from './views/PlayersView';
 import { ComplianceView } from './views/ComplianceView';
@@ -126,6 +128,8 @@ export default function App() {
             <HomeView setActiveTab={setActiveTab} progress={progress} mission={mission} />
           )}
 
+          {activeTab === 'mvp-v1' && <MVPV1View setActiveTab={setActiveTab} />}
+
           {activeTab === 'play' && (
             <PlayView progress={progress} setProgress={setProgress} />
           )}
@@ -181,6 +185,7 @@ export default function App() {
           )}
 
           {activeTab === 'developers' && <DevelopersView />}
+          {activeTab === 'community' && <CommunityView setActiveTab={setActiveTab} />}
           {activeTab === 'web-doc' && <WebDocView />}
 
           {activeTab === 'players' && (
