@@ -50,6 +50,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, progres
 
   const navItems: { id: NavigationTab; label: string; icon: React.FC<{ className?: string }> }[] = [
     { id: 'home', label: 'Home', icon: Radio },
+    { id: 'mvp-v1', label: 'MVP v1.0', icon: Gamepad2 },
     { id: 'play', label: 'Play Stamford', icon: Play },
     { id: 'development-status', label: 'Development Status', icon: GitBranch },
     { id: 'prototype', label: 'Web Prototype', icon: Gamepad2 },
@@ -61,6 +62,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, progres
     { id: 'inventory', label: 'Inventory & Rewards', icon: Package },
     { id: 'digital-asset-economy', label: 'Digital Economy', icon: Coins },
     { id: 'developers', label: 'Developers', icon: Terminal },
+    { id: 'community', label: 'Community', icon: Users },
     { id: 'web-doc', label: 'Web Doc', icon: FileText },
     { id: 'players', label: 'Players', icon: Users },
     { id: 'compliance', label: 'Compliance', icon: ShieldCheck },
