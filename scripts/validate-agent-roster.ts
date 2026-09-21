@@ -41,4 +41,16 @@ assert.match(serverSource, /human-directed/i, 'Agent dispatch system prompt must
 assert.match(serverSource, /Gregory L\. Jones|One Gregory Onegodian/i, 'Agent dispatch system prompt must preserve Gregory as final human authority.');
 assert.doesNotMatch(serverSource, /authoritative autonomous cybernetic intelligence unit/i, 'Server must not characterize development agents as autonomous authority.');
 
+const teamViewSource = fs.readFileSync(new URL('../src/views/TeamView.tsx', import.meta.url), 'utf8');
+assert.match(teamViewSource, /AGENT_ROSTER/, 'TeamView must render from the canonical agent roster.');
+assert.match(teamViewSource, /HUMAN_LEADERSHIP/, 'TeamView must render the human leadership record separately from AI agents.');
+assert.match(teamViewSource, /31-Agent Studio|31 AI Agents|31-Agent/, 'TeamView must identify the complete 31-agent studio.');
+
+const appSource = fs.readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
+const navbarSource = fs.readFileSync(new URL('../src/components/Navbar.tsx', import.meta.url), 'utf8');
+const typesSource = fs.readFileSync(new URL('../src/types.ts', import.meta.url), 'utf8');
+assert.match(appSource, /TeamView/, 'App must route to TeamView.');
+assert.match(navbarSource, /AI Game Studio|Team/, 'Navbar must expose the team/studio route.');
+assert.match(typesSource, /'team'/, 'NavigationTab must include the team route.');
+
 console.log(`Agent roster validation passed: ${AGENT_ROSTER.length} AI agents + human final authority.`);
