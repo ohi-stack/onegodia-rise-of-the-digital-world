@@ -10,9 +10,9 @@
 
 Convert the existing `/play` experience on `game.onegodian.com` from a tactical DOM prototype into a dedicated browser-game runtime while preserving the surrounding React application, documentation, missions, inventory, developer pages, compliance pages, and existing player-progress persistence.
 
-The first production slice must prove a complete browser gameplay loop:
+The first production slice must prove a complete browser gameplay loop using the repository's existing canonical **Mission 001 — Rebuilding Signal**:
 
-**Load game → spawn at Stamford Hospital → move → interact with Mission Guide → accept Mission 001 → reach vehicle → enter vehicle → drive to Downtown objective → interact → complete mission → receive reward → save progress → reload/reset and replay.**
+**Load game → spawn at Stamford Hospital / browser Hub area → move → speak with Aria Pulse → accept Mission 001 → reach vehicle → drive toward the Downtown/Sector 7 route → scan Corrupted Digital Node #001 → collect Data Fragment #001 → return to Aria Pulse / Hub → complete mission → receive the canonical 250-credit completion bounty → save progress → reload/reset and replay.**
 
 The browser runtime is an independent playable client. The Unreal Engine Stamford build remains the high-fidelity production path developed in parallel.
 
@@ -32,9 +32,10 @@ The repository already contains:
 - Downtown destination waypoint.
 - Reset to Stamford Hospital.
 - Local player-progress persistence through the existing application state/localStorage flow.
+- Canonical `MISSION_001_REBUILDING_SIGNAL` state and objectives in `src/data/initialGameState.ts`.
 - Existing missions, inventory, tactical HUD, gameplay grid, development status, players, developers, and compliance views.
 
-The implementation must extend these systems rather than replace unrelated application architecture.
+The implementation must extend these systems rather than replace unrelated application architecture or silently redefine Mission 001.
 
 ## 3. Scope
 
@@ -47,14 +48,17 @@ The implementation must extend these systems rather than replace unrelated appli
 - Camera/viewport tracking inside the bounded Stamford Hospital district.
 - Walk and sprint movement.
 - World boundaries and simple collision primitives.
-- Mission Guide NPC.
+- Aria Pulse as the first scripted Mission Guide NPC.
 - Interaction prompt and interaction action.
-- Mission 001 state machine.
+- Browser-runtime mapping of the existing Mission 001 objective sequence.
 - Vehicle staging, enter/exit, and simplified browser driving.
-- Downtown mission objective.
-- Completion/reward state.
+- Sector 7 / Downtown route objective.
+- Corrupted Digital Node #001 scan interaction.
+- Data Fragment #001 collection.
+- Return-to-Hub step.
+- Canonical mission completion/reward integration.
 - HUD for objective, location, interaction, movement mode, and mission state.
-- Integration with the existing `PlayerProgress` and mission persistence model.
+- Integration with the existing `PlayerProgress` and `Mission` persistence model.
 - Reset and replay behavior.
 - Responsive desktop/mobile controls.
 - Graceful fallback if canvas initialization fails.
@@ -100,11 +104,9 @@ src/game/
 ├── vehicle/
 │   └── VehicleController.ts
 ├── missions/
-│   └── mission001.ts
-├── npc/
-│   └── MissionGuide.ts
-└── persistence/
-    └── gamePersistence.ts
+│   └── mission001Runtime.ts
+└── npc/
+    └── AriaPulse.ts
 
 src/components/game/
 ├── GameCanvas.tsx
@@ -113,7 +115,7 @@ src/components/game/
 └── MobileGameControls.tsx
 ```
 
-`src/views/PlayView.tsx` should compose these pieces and bridge runtime events into React state.
+`src/views/PlayView.tsx` composes these pieces and bridges runtime events into React state.
 
 ### 4.2 Rendering strategy
 
@@ -123,14 +125,14 @@ Reasons:
 
 - No additional engine dependency is required.
 - It can ship inside the current Vite/React deployment with minimal build risk.
-- It gives us an actual frame loop, viewport, layered world rendering, player/vehicle/NPC sprites, collision visualization, and responsive controls.
-- The runtime interfaces can later be retained while the renderer is replaced by Three.js/Babylon.js if 3D browser production is approved.
+- It provides an actual frame loop, viewport, layered world rendering, player/vehicle/NPC sprites, collision, mission markers, and responsive controls.
+- The runtime interfaces can later be retained while the renderer is replaced by Three.js/Babylon.js if 3D browser production is separately approved.
 
 The canvas renderer must not be implemented as a one-off monolith. Runtime state and gameplay rules remain renderer-independent where practical.
 
 ### 4.3 Coordinate model
 
-Use world-space pixel coordinates inside a bounded virtual Stamford Hospital zone, separate from screen coordinates.
+Use world-space pixel coordinates inside a bounded fictionalized Stamford Hospital zone, separate from screen coordinates.
 
 The runtime owns:
 
@@ -138,13 +140,14 @@ The runtime owns:
 - player world position,
 - NPC position,
 - vehicle position,
-- mission objective position,
+- Sector 7 / Digital Node position,
+- Hub return position,
 - collision rectangles,
 - camera offset.
 
 Rendering converts world coordinates to viewport coordinates each frame.
 
-This replaces the existing percentage-position DOM model while preserving the same gameplay landmarks.
+This replaces the existing percentage-position DOM model while preserving the same public Stamford Hospital and Downtown route concepts.
 
 ## 5. Core Components
 
@@ -154,21 +157,20 @@ Responsibilities:
 
 - Own current runtime state.
 - Start/stop the animation loop.
-- Apply fixed/clamped delta time.
+- Apply clamped delta time.
 - Read normalized input.
 - Update player/vehicle movement.
 - Resolve world bounds/collisions.
 - Evaluate proximity/interactions.
-- Advance Mission 001.
-- Emit runtime events to React.
+- Map runtime actions to canonical Mission 001 objectives.
+- Emit semantic runtime events to React.
 - Render the current frame.
 
-The runtime exposes a small public API:
+Public API:
 
 - `start()`
 - `stop()`
 - `reset()`
-- `setInputState()` or connect to `InputController`
 - `interact()`
 - `enterExitVehicle()`
 - `getSnapshot()`
@@ -196,7 +198,7 @@ Desktop mappings:
 - `A` / Arrow Left = left
 - `D` / Arrow Right = right
 - `Shift` = sprint
-- `E` = interact
+- `E` = interact / scan / collect / report, depending on the active objective
 - `F` = enter/exit vehicle
 
 Touch controls map to the same runtime input model.
@@ -224,43 +226,35 @@ Required behavior:
 
 No realistic physics simulation is required in this slice.
 
-### 5.5 Mission Guide NPC
+### 5.5 Aria Pulse NPC
 
-The Mission Guide is a scripted NPC located near the Stamford Hospital start area.
+Aria Pulse is the scripted Mission Guide for Browser Runtime V1.
 
 Required behavior:
 
-- visible world entity,
+- visible world entity near the start/Hub area,
 - interaction radius,
 - prompt when player is nearby,
 - `E`/touch interaction,
-- one short mission-offer dialogue state,
-- mission acceptance triggers Mission 001.
+- briefing dialogue sourced from the existing Mission 001 definition,
+- mission acceptance advances the existing mission state.
 
-### 5.6 Mission 001 state machine
+### 5.6 Mission 001 runtime mapping
 
-Canonical runtime stages:
+The browser runtime must preserve the canonical mission definition from `INITIAL_MISSION_001` rather than replacing it.
 
-1. `spawned`
-2. `guide-reached`
-3. `mission-accepted`
-4. `vehicle-reached`
-5. `driving`
-6. `downtown-reached`
-7. `objective-interacted`
-8. `completed`
+Runtime stages map to the existing six objectives:
 
-The mission may not skip required stages due only to proximity. Interaction gates must be explicit for Guide acceptance and Downtown completion.
+1. **Speak to Aria Pulse at the Hub** — player reaches Aria and explicitly interacts.
+2. **Travel to Sector 7 Outpost** — player reaches vehicle staging, enters vehicle, and travels along the browser route toward the Downtown/Sector 7 destination.
+3. **Scan Corrupted Digital Node #001** — player reaches the node and performs explicit `E`/touch scan interaction.
+4. **Collect Onegodia Data Fragment #001** — scan completion reveals/permits a separate collection interaction.
+5. **Return to Hub and report to Aria Pulse** — player returns to the start/Hub area and explicitly interacts with Aria.
+6. **Receive mission completion bounty** — existing mission completion logic grants the canonical 250-credit grand bounty and associated completion state exactly once.
 
-Completion must update the existing persistent player state with a defined reward and last-location value.
+The runtime may expose finer internal stages (`vehicle-reached`, `driving`, `node-reached`, `returning`) but those are implementation detail; the persisted mission source of truth remains the existing `Mission` object and objective list.
 
-Initial Browser V1 completion reward:
-
-- `+250 credits`
-- last location: `Downtown Stamford Gateway`
-- mission-complete flag persisted through the existing mission/player state model
-
-The reward must be idempotent: re-rendering or repeated interaction after completion must not grant credits repeatedly.
+Reward behavior must be idempotent. Re-rendering, resetting the canvas, or repeated interaction after mission completion must not grant the final bounty repeatedly.
 
 ## 6. World Design — Stamford Hospital Slice
 
@@ -268,12 +262,13 @@ The first canvas world remains fictionalized and schematic rather than a claim o
 
 Required landmarks:
 
-- Stamford Hospital spawn campus.
-- Mission Guide position near spawn.
+- Stamford Hospital spawn / browser Hub area.
+- Aria Pulse near the Hub.
 - sidewalk/street corridor.
 - vehicle staging area.
-- road path toward Downtown.
-- Downtown Stamford Gateway mission marker.
+- road path toward Downtown / Sector 7.
+- Corrupted Digital Node #001 objective area.
+- return route to the Hub.
 - decorative city blocks/green areas sufficient to make movement spatially readable.
 
 The existing public labeling must continue to distinguish this browser slice from the separate high-fidelity Unreal Stamford build.
@@ -281,12 +276,12 @@ The existing public labeling must continue to distinguish this browser slice fro
 ## 7. React Integration and Data Flow
 
 ```text
-React App state
+React App state (`progress`, `mission`)
   ↓ props
 PlayView
   ↓ initializes
 GameCanvas / GameRuntime
-  ↓ runtime events
+  ↓ semantic runtime events
 PlayView event handlers
   ↓
 setProgress / setMission
@@ -294,17 +289,23 @@ setProgress / setMission
 existing localStorage persistence in App.tsx
 ```
 
-The runtime should not write directly to `localStorage` if existing React application state already owns persistence. The runtime emits semantic events such as:
+The runtime does not write directly to `localStorage`. Existing React application state remains the persistence owner.
 
+Semantic events may include:
+
+- `GUIDE_INTERACTED`
 - `MISSION_ACCEPTED`
 - `VEHICLE_ENTERED`
-- `DOWNTOWN_REACHED`
+- `SECTOR_7_REACHED`
+- `NODE_SCANNED`
+- `FRAGMENT_COLLECTED`
+- `HUB_RETURNED`
 - `MISSION_COMPLETED`
 - `PLAYER_LOCATION_CHANGED`
 
-React translates those events into existing `PlayerProgress` / `Mission` mutations.
+`PlayView` translates these events into changes to the existing `PlayerProgress` and `Mission` structures.
 
-This preserves one source of truth for persisted application state.
+`App.tsx` must pass both `mission/setMission` and `progress/setProgress` to `PlayView` after this refactor.
 
 ## 8. Error Handling
 
@@ -314,7 +315,7 @@ If canvas context acquisition or runtime initialization fails:
 
 - show a visible error panel inside `/play`,
 - preserve navigation to the rest of the site,
-- do not crash the entire React application,
+- do not crash the React application,
 - provide a `Retry Runtime` action.
 
 ### Persistence failure
@@ -323,7 +324,7 @@ Existing application persistence already tolerates localStorage failure. Browser
 
 ### Invalid saved state
 
-If persisted mission state is incomplete or incompatible with the runtime stages, normalize it back to a valid Browser V1 stage rather than throwing.
+If persisted mission state is incomplete, stale, or incompatible, normalize it against `INITIAL_MISSION_001` in the same spirit as the existing `App.tsx` normalization behavior rather than throwing.
 
 ### Input cleanup
 
@@ -331,15 +332,16 @@ All keyboard/pointer listeners and animation-frame callbacks must be removed whe
 
 ## 9. Accessibility and Mobile Behavior
 
-- Canvas must have an accessible label/description.
-- Critical state must also appear in DOM HUD text rather than only visually on the canvas.
-- Touch directional controls must support pointer down/up/cancel behavior.
-- Interact and vehicle actions must have visible touch buttons.
-- The runtime should pause or stop processing movement when the page/view is not active or component is unmounted.
+- Canvas has an accessible label/description.
+- Critical state appears in DOM HUD text as well as visually on the canvas.
+- Touch directional controls support pointer down/up/cancel behavior.
+- Interact and vehicle actions have visible touch buttons.
+- Runtime processing stops on unmount.
+- Keyboard actions do not hijack unrelated site navigation when the runtime is not active.
 
 ## 10. Testing Strategy
 
-### Unit tests / pure logic tests
+### Pure-logic tests
 
 Test independently where practical:
 
@@ -347,73 +349,80 @@ Test independently where practical:
 - world-bound clamping,
 - rectangle collision response,
 - interaction-radius checks,
-- mission stage transitions,
+- runtime-to-Mission-001 objective mapping,
+- valid objective transition order,
 - reward idempotency,
 - saved-state normalization.
 
-### Integration tests
+### Integration / acceptance tests
 
 At minimum verify:
 
 1. Runtime initializes.
-2. Player starts at Stamford Hospital.
+2. Player starts at Stamford Hospital / Hub.
 3. Player can move.
-4. Guide proximity displays interaction state.
-5. Mission cannot advance without explicit Guide interaction.
-6. Mission acceptance changes objective.
-7. Vehicle cannot be entered from outside radius.
+4. Aria proximity displays interaction state.
+5. Objective 1 cannot complete without explicit Aria interaction.
+6. Mission acceptance changes objective state.
+7. Vehicle cannot be entered outside its interaction radius.
 8. Vehicle can be entered near staging.
-9. Driving reaches Downtown trigger.
-10. Downtown requires explicit interaction to complete.
-11. Completion grants exactly 250 credits once.
-12. Reset returns player to Stamford Hospital without duplicating reward.
-13. React state persists after page reload through the existing localStorage flow.
-14. Mobile controls drive the same runtime input path as keyboard controls.
+9. Driving can reach the Sector 7 / Downtown route destination.
+10. Node scan requires explicit interaction.
+11. Fragment collection requires a subsequent explicit interaction.
+12. Mission cannot complete at the node; player must return to Hub.
+13. Return interaction with Aria advances the reporting objective.
+14. Final completion grants the canonical 250-credit completion bounty exactly once.
+15. Relevant fragment/completion state is reflected in existing persisted player/mission structures.
+16. Reset returns the runtime avatar to Stamford Hospital without duplicating rewards or erasing canonical persisted mission state unless an explicit new-game/reset-progress action is later approved.
+17. Page reload restores persisted progress through the existing localStorage flow.
+18. Mobile controls use the same runtime input path as keyboard controls.
 
 ### Build verification
 
 Before merge:
 
-- `npm install`
-- `npm run lint`
-- `npm run build`
-- run available automated tests
-- verify no TypeScript errors
-- manually exercise the full Browser V1 loop in a local/preview build
+- install dependencies using the repository's normal package workflow,
+- `npm run lint`,
+- `npm run build`,
+- run added automated tests,
+- verify no TypeScript errors,
+- manually exercise the full Browser Runtime V1 mission loop in a local/preview build.
 
 ## 11. Deployment and Source-Control Strategy
 
 Implementation occurs on `feat/browser-game-runtime-v1`.
 
-No direct product-code edits should be made on `main` during development.
+No direct product-code edits are made on `main` during development.
 
 Merge readiness requires:
 
 - specification implemented,
 - build passing,
-- automated logic tests passing where added,
+- automated logic tests passing,
 - manual gameplay acceptance evidence recorded,
 - PR reviewed,
 - no unrelated changes.
 
-The existing Hostinger deployment is expected to consume `main` through its current GitHub deployment path. A merge does not by itself prove the public node deployed successfully; live status must be verified from deployment evidence or the live site after merge.
+The existing Hostinger deployment is expected to consume `main` through its current GitHub deployment path. A merge does not itself prove the public node deployed successfully; live status must be verified from deployment evidence or the public site after merge.
 
 ## 12. Definition of Done
 
 Browser Game Runtime V1 is complete only when a player can:
 
 1. Open `/play`.
-2. Spawn at Stamford Hospital.
+2. Spawn at Stamford Hospital / browser Hub.
 3. Move with desktop or touch controls.
-4. Reach and interact with the Mission Guide.
-5. Accept Mission 001.
+4. Reach and interact with Aria Pulse.
+5. Accept Mission 001 — Rebuilding Signal.
 6. Reach the vehicle staging point.
 7. Enter the vehicle.
-8. Drive to Downtown Stamford Gateway.
-9. Interact with the objective.
-10. Complete the mission.
-11. Receive exactly 250 credits once.
-12. Reload and retain persisted progress.
-13. Reset and replay without runtime/input duplication or application crash.
+8. Drive to the Sector 7 / Downtown route objective.
+9. Scan Corrupted Digital Node #001.
+10. Collect Onegodia Data Fragment #001.
+11. Return to Aria Pulse / Hub.
+12. Report mission completion.
+13. Receive the canonical 250-credit final completion bounty exactly once.
+14. Reload and retain persisted progress.
+15. Reset/re-enter the runtime without duplicate input handlers, duplicate rewards, or application crash.
 
 Anything beyond this list is a separate approved increment.
