@@ -197,15 +197,16 @@ export const PlayView: React.FC<PlayViewProps> = ({ progress, setProgress }) => 
       <section className="rounded-xl border border-cyan-500/30 bg-[#080b10] p-4 sm:p-5 shadow-[0_0_30px_rgba(0,255,255,0.08)]">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <div className="text-[10px] uppercase tracking-[0.25em] text-cyan-400">Onegodia Web Game V1</div>
+            <div className="text-[10px] uppercase tracking-[0.25em] text-cyan-400">Onegodia Web Game V1 · World Gate</div>
             <h1 className="mt-1 text-xl sm:text-2xl font-black text-white">Stamford Hospital → Harbor Point Corridor</h1>
             <p className="mt-1 max-w-3xl text-xs sm:text-sm text-slate-400 font-sans">
-              Reference-driven browser gameplay for Stamford. Spawn at Stamford Hospital, enter a vehicle, travel the Washington Boulevard corridor, pass Stamford Station, and continue toward Harbor Point.
+              Playable browser runtime for Stamford. Stamford Hospital is the canonical safe spawn. Browser progression will migrate from local development state to shared Onegodia Game Services so the web and Unreal clients can consume the same durable player record.
             </p>
           </div>
           <div className="flex gap-2 text-[10px]">
             <span className="rounded border border-emerald-500/40 bg-emerald-950/30 px-2 py-1 text-emerald-300">PLAYABLE WEB V1</span>
             <span className="rounded border border-blue-500/40 bg-blue-950/30 px-2 py-1 text-blue-300">UNREAL IN PARALLEL</span>
+            <span className="rounded border border-purple-500/40 bg-purple-950/30 px-2 py-1 text-purple-300">GAME SERVICES NEXT</span>
           </div>
         </div>
       </section>
@@ -338,7 +339,7 @@ export const PlayView: React.FC<PlayViewProps> = ({ progress, setProgress }) => 
       </div>
 
       <div className="rounded border border-[#27314a] bg-[#090d14] p-3 text-[10px] leading-relaxed text-slate-500">
-        Stamford visual-reference pass: Washington Boulevard, the rail/underpass approach, Stamford Station, and Harbor Point are now represented as browser-game route anchors. The current map is a gameplay abstraction, not a surveyed GIS map. Unreal remains the high-fidelity production path in parallel.
+        Platform architecture: this browser runtime is a first-class Onegodia client. The current Stamford map remains a gameplay abstraction, not surveyed GIS. Durable identity, missions, inventory, progression, and zone state are being assigned to Onegodia Game Services; Unreal remains the high-fidelity client in parallel.
       </div>
     </div>
   );
