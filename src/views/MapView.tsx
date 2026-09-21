@@ -38,6 +38,7 @@ import {
   updateDroneAI, 
   checkPointInVisionCone 
 } from '../components/DronePatrol';
+import { StamfordGoogleMap } from '../components/maps/StamfordGoogleMap';
 
 interface MapViewProps {
   progress: PlayerProgress;
@@ -47,6 +48,7 @@ interface MapViewProps {
   setActiveTab: (tab: NavigationTab) => void;
 }
 
+type MapMode = 'stamford-gis' | 'sector7-gameplay';
 type MapLayer = 'all' | 'missions' | 'fast-travel' | 'sentinels' | 'relics' | 'districts';
 type MapInteractionMode = 'inspect' | 'warp' | 'waypoint';
 
@@ -57,6 +59,8 @@ export const MapView: React.FC<MapViewProps> = ({
   setMission,
   setActiveTab
 }) => {
+  const [mapMode, setMapMode] = useState<MapMode>('stamford-gis');
+
   // Player Position in World Space
   const [playerCoords, setPlayerCoords] = useState<{ x: number; y: number }>(() => {
     return { x: 240, y: 400 };
@@ -201,8 +205,61 @@ export const MapView: React.FC<MapViewProps> = ({
   return (
     <div className="space-y-4 py-2 font-sans">
       
-      {/* Top Header & Telemetry Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 rounded-xl bg-[#0c0e14] border border-[#1e2230] shadow-xl">
+      {/* Primary Mode Switcher Tab Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-[#0a0d16] border border-cyan-500/40 shadow-lg">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              sound.playClick();
+              setMapMode('stamford-gis');
+            }}
+            className={`px-4 py-2 rounded-lg text-xs font-bold font-mono flex items-center gap-2 transition-all ${
+              mapMode === 'stamford-gis'
+                ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/30'
+                : 'bg-[#101624] text-slate-300 hover:text-white border border-[#1e2738]'
+            }`}
+          >
+            <Compass className="w-4 h-4 text-cyan-200" />
+            <span>Stamford GIS Corridor (Google Maps & Routes)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              sound.playClick();
+              setMapMode('sector7-gameplay');
+            }}
+            className={`px-4 py-2 rounded-lg text-xs font-bold font-mono flex items-center gap-2 transition-all ${
+              mapMode === 'sector7-gameplay'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                : 'bg-[#101624] text-slate-300 hover:text-white border border-[#1e2738]'
+            }`}
+          >
+            <Crosshair className="w-4 h-4 text-blue-200" />
+            <span>Sector 7 Radar (Cyberpunk Gameplay Grid)</span>
+          </button>
+        </div>
+
+        <div className="text-[11px] font-mono text-slate-400 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span>Google Maps Platform Active</span>
+        </div>
+      </div>
+
+      {mapMode === 'stamford-gis' ? (
+        <StamfordGoogleMap
+          progress={progress}
+          setProgress={setProgress}
+          onWarpLocation={(loc) => {
+            setWarpToast(`Player fast-travelled to ${loc}`);
+            setTimeout(() => setWarpToast(null), 4000);
+          }}
+        />
+      ) : (
+        <>
+          {/* Top Header & Telemetry Bar */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 rounded-xl bg-[#0c0e14] border border-[#1e2230] shadow-xl">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
@@ -870,6 +927,8 @@ export const MapView: React.FC<MapViewProps> = ({
         </div>
 
       </div>
+        </>
+      )}
 
     </div>
   );

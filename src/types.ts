@@ -15,10 +15,12 @@ export type NavigationTab =
   | 'tactical-hud'
   | 'map'
   | 'missions'
+  | 'story'
   | 'inventory'
   | 'digital-asset-economy'
   | 'developers'
   | 'community'
+  | 'media'
   | 'web-doc'
   | 'players'
   | 'compliance';

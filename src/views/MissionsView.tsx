@@ -38,6 +38,7 @@ import {
 import { Mission, PlayerProgress, NavigationTab, MissionHistoryEntry } from '../types';
 import { sound } from '../services/audioService';
 import { MissionLog } from '../components/MissionLog';
+import { MissionLogView } from './MissionLogView';
 import { StripeCheckoutModal } from '../components/StripeCheckoutModal';
 import { getMissionHistory, saveMissionHistoryEntry, clearMissionHistory } from '../services/historyService';
 
@@ -653,10 +654,11 @@ export const MissionsView: React.FC<MissionsViewProps> = ({ mission, setMission,
 
       {/* Mode 1: Mission Log */}
       {subTab === 'log' && (
-        <MissionLog
+        <MissionLogView
           mission={mission}
           setMission={setMission}
           progress={progress}
+          setProgress={setProgress}
           setActiveTab={setActiveTab}
         />
       )}

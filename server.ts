@@ -4,6 +4,14 @@ import dotenv from 'dotenv';
 import Stripe from 'stripe';
 import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
+import { requireAuth, AuthRequest } from './src/middleware/auth.ts';
+import {
+  getOrCreateUser,
+  getPlayerProgressByUid,
+  updatePlayerProgressByUid,
+  recordCorridorRun,
+  getCorridorRunsByUid,
+} from './src/db/users.ts';
 
 dotenv.config();
 
@@ -89,7 +97,8 @@ app.get('/api/config/system-nodes', (req, res) => {
         role: 'Quantum Receipt & Asset Verification'
       },
       database: {
-        configured: Boolean(process.env.DATABASE_URL),
+        configured: Boolean(process.env.SQL_HOST && process.env.SQL_DB_NAME),
+        engine: 'Cloud SQL (PostgreSQL)',
         role: 'Relational High-Throughput Game Database'
       },
       stripe: {
@@ -599,7 +608,88 @@ app.get('/api/stripe/verify-session/:sessionId', async (req, res) => {
 });
 
 // -------------------------------------------------------------
-// 8. Mount Vite middleware or Static distribution
+// 8. Cloud SQL Relational Player & Telemetry Endpoints
+// -------------------------------------------------------------
+
+app.post('/api/auth/sync', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const uid = req.user?.uid;
+    const email = req.user?.email || 'player@onegodian.com';
+    if (!uid) {
+      return res.status(401).json({ error: 'Missing UID in authenticated token.' });
+    }
+
+    const user = await getOrCreateUser(uid, email);
+    const progress = await getPlayerProgressByUid(uid);
+    res.json({
+      status: 'synced',
+      user,
+      progress,
+    });
+  } catch (error: any) {
+    console.error('Failed to sync user with Cloud SQL:', error);
+    res.status(500).json({ error: error.message || 'Failed to sync user' });
+  }
+});
+
+app.get('/api/player/progress', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const uid = req.user?.uid;
+    if (!uid) {
+      return res.status(401).json({ error: 'Missing UID in authenticated token.' });
+    }
+    const progress = await getPlayerProgressByUid(uid);
+    res.json({ progress });
+  } catch (error: any) {
+    console.error('Failed to get player progress:', error);
+    res.status(500).json({ error: error.message || 'Failed to fetch player progress' });
+  }
+});
+
+app.put('/api/player/progress', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const uid = req.user?.uid;
+    if (!uid) {
+      return res.status(401).json({ error: 'Missing UID in authenticated token.' });
+    }
+    const updated = await updatePlayerProgressByUid(uid, req.body);
+    res.json({ success: true, progress: updated });
+  } catch (error: any) {
+    console.error('Failed to update player progress:', error);
+    res.status(500).json({ error: error.message || 'Failed to update player progress' });
+  }
+});
+
+app.post('/api/player/corridor-runs', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const uid = req.user?.uid;
+    if (!uid) {
+      return res.status(401).json({ error: 'Missing UID in authenticated token.' });
+    }
+    const run = await recordCorridorRun(uid, req.body);
+    res.json({ success: true, run });
+  } catch (error: any) {
+    console.error('Failed to record corridor run:', error);
+    res.status(500).json({ error: error.message || 'Failed to record corridor run' });
+  }
+});
+
+app.get('/api/player/corridor-runs', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const uid = req.user?.uid;
+    if (!uid) {
+      return res.status(401).json({ error: 'Missing UID in authenticated token.' });
+    }
+    const runs = await getCorridorRunsByUid(uid);
+    res.json({ runs });
+  } catch (error: any) {
+    console.error('Failed to get corridor runs:', error);
+    res.status(500).json({ error: error.message || 'Failed to fetch corridor runs' });
+  }
+});
+
+// -------------------------------------------------------------
+// 9. Mount Vite middleware or Static distribution
 // -------------------------------------------------------------
 
 async function startServer() {

@@ -10,6 +10,7 @@ import { INITIAL_MISSION_001, INITIAL_PLAYER_PROGRESS } from './data/initialGame
 import { attachStripeReceiptToHistory } from './services/historyService';
 import { sound } from './services/audioService';
 import { ThemeProvider } from './context/ThemeContext';
+import { AuthProvider } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { ComplianceBanner } from './components/ComplianceBanner';
@@ -29,6 +30,7 @@ import { InventoryView } from './views/InventoryView';
 import { DigitalAssetEconomyView } from './views/DigitalAssetEconomyView';
 import { DevelopersView } from './views/DevelopersView';
 import { CommunityView } from './views/CommunityView';
+import { MediaView } from './views/MediaView';
 import { WebDocView } from './views/WebDocView';
 import { PlayersView } from './views/PlayersView';
 import { ComplianceView } from './views/ComplianceView';
@@ -111,10 +113,12 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <div className="min-h-screen bg-[#050608] text-slate-300 flex flex-col font-sans selection:bg-blue-600 selection:text-white transition-colors duration-200 relative overflow-hidden">
-        <div className="absolute inset-0 gamer-grid opacity-20 pointer-events-none z-0"></div>
-        <div className="scanline-overlay"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_0%,_#050608_80%)] pointer-events-none z-0"></div>
+      <AuthProvider>
+        <div className="min-h-screen bg-[#07090e] text-slate-200 flex flex-col font-sans selection:bg-blue-600 selection:text-white transition-colors duration-200 relative overflow-hidden">
+        {/* Modern Ambient Mesh & Soft Dot Texture */}
+        <div className="absolute inset-0 modern-mesh-bg opacity-70 pointer-events-none z-0"></div>
+        <div className="absolute inset-0 modern-dot-pattern opacity-30 pointer-events-none z-0"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#07090e]/40 to-[#07090e] pointer-events-none z-0"></div>
 
         <div className="relative z-10">
           <ComplianceBanner />
@@ -132,7 +136,7 @@ export default function App() {
           {activeTab === 'mvp-v1' && <MVPV1View setActiveTab={setActiveTab} />}
 
           {activeTab === 'play' && (
-            <PlayView progress={progress} setProgress={setProgress} />
+            <PlayView progress={progress} setProgress={setProgress} setActiveTab={setActiveTab} />
           )}
 
           {activeTab === 'development-status' && <DevelopmentStatusView />}
@@ -171,7 +175,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'missions' && (
+          {(activeTab === 'missions' || activeTab === 'story') && (
             <MissionsView
               mission={mission}
               setMission={setMission}
@@ -189,6 +193,7 @@ export default function App() {
 
           {activeTab === 'developers' && <DevelopersView />}
           {activeTab === 'community' && <CommunityView setActiveTab={setActiveTab} />}
+          {activeTab === 'media' && <MediaView setActiveTab={setActiveTab} />}
           {activeTab === 'web-doc' && <WebDocView />}
 
           {activeTab === 'players' && (
@@ -200,6 +205,7 @@ export default function App() {
 
         <Footer setActiveTab={setActiveTab} />
       </div>
+      </AuthProvider>
     </ThemeProvider>
   );
 }
