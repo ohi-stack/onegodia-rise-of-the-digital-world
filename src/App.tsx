@@ -14,6 +14,7 @@ import { AuthProvider } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { ComplianceBanner } from './components/ComplianceBanner';
+import { September22Milestone } from './components/September22Milestone';
 
 // Views
 import { HomeView } from './views/HomeView';
@@ -222,7 +223,13 @@ function AppContent() {
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
         {activeTab === 'home' && (
-          <HomeView setActiveTab={setActiveTab} progress={progress} mission={mission} />
+          <div className="space-y-8">
+            <HomeView setActiveTab={setActiveTab} progress={progress} mission={mission} />
+            <September22Milestone
+              onPlay={() => setActiveTab('play')}
+              onStatus={() => setActiveTab('development-status')}
+            />
+          </div>
         )}
 
         {activeTab === 'mvp-v1' && <MVPV1View setActiveTab={setActiveTab} />}
