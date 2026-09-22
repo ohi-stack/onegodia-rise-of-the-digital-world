@@ -11,6 +11,7 @@ export type NavigationTab =
   | 'development-status'
   | 'producer'
   | 'qa'
+  | 'npc-dialogue'
   | 'prototype'
   | 'gameplay'
   | 'gameplay-grid'
