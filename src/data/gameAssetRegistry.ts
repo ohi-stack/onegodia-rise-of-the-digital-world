@@ -19,7 +19,7 @@ export const GAME_ASSET_CLASSES: GameAssetClass[] = [
   { id:'BLD', title:'Construction Assets', examples:['Building materials','Property upgrades','Infrastructure components','Green-development components'], status:'Planned', ownership:'Property' },
   { id:'TECH', title:'Technology Assets', examples:['Smart devices','Technology equipment','Digital-world devices'], status:'Planned', ownership:'Mixed' },
   { id:'LMK', title:'Landmarks & POIs', examples:['Landmarks','Important buildings','Mission POIs','World structures'], status:'Planned', ownership:'World' },
-  { id:'MIS', title:'Mission Assets', examples:['Onegodia Data Fragment #001','Mission rewards','Quest items','Fragments','Progression unlocks'], status:'Playable Now', ownership:'Player' },
+  { id:'MIS', title:'Mission Assets', examples:['Onegodia Data Fragment #001','Mission rewards','Quest items','Fragments','Progression unlocks'], status:'Prototype', ownership:'Player' },
   { id:'COL', title:'Collectibles', examples:['Digital collectibles','Limited items','Memorabilia','Rare Onegodia artifacts'], status:'Roadmap', ownership:'Player' },
   { id:'LIC', title:'Licenses & Rights', examples:['Business licenses','Gameplay permissions','Operational unlocks'], status:'Planned', ownership:'Player' },
   { id:'MEM', title:'Membership & Access', examples:['Membership items','Access items','Passes','Player unlocks'], status:'Roadmap', ownership:'Player' },
