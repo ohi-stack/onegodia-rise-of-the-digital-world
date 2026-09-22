@@ -56,6 +56,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, progres
     { id: 'play', label: 'Play Stamford', icon: Play },
     { id: 'development-status', label: 'Development Status', icon: GitBranch },
     { id: 'producer', label: 'Game Producer', icon: ClipboardList },
+    { id: 'qa', label: 'QA & Testing', icon: ShieldCheck },
     { id: 'prototype', label: 'Web Prototype', icon: Gamepad2 },
     { id: 'map', label: 'World Map', icon: MapIcon },
     { id: 'gameplay', label: 'Gameplay', icon: Gamepad2 },
