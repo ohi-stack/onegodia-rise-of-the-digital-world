@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircle2, CircleDashed, Hammer, Gamepad2, ShieldCheck, GitBranch } from 'lucide-react';
+import { September22Milestone } from '../components/September22Milestone';
 
 type PipelineStatus = 'Planned' | 'Building' | 'Verified' | 'Playable';
 
@@ -130,6 +131,12 @@ export const DevelopmentStatusView: React.FC = () => {
         <p className="mt-4 max-w-4xl text-sm sm:text-base leading-7 text-slate-300">
           This page reports the production pipeline for the Unreal Engine build. Website simulations, interface prototypes, planning documents, generated code, or agent reports do not automatically make an Unreal feature verified or playable.
         </p>
+      </div>
+
+      {/* Browser V1 milestone — recorded separately from Unreal pipeline promotion states. */}
+      <div>
+        <div className="mb-3 text-[10px] font-mono uppercase tracking-[0.2em] text-slate-500">Browser V1 milestone</div>
+        <September22Milestone variant="status" />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
