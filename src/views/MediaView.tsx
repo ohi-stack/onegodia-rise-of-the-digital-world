@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, Video, Download, Sparkles, Film, ExternalLink, Play } from 'lucide-react';
+import { Film } from 'lucide-react';
 import { NavigationTab } from '../types';
 
 interface MediaViewProps {
@@ -8,6 +8,12 @@ interface MediaViewProps {
 
 export const MediaView: React.FC<MediaViewProps> = ({ setActiveTab }) => {
   const mediaItems = [
+    {
+      title: 'AI-Unreal-Developer — Stamford V1 Concept',
+      category: 'CONCEPT ART — NOT PLAYABLE EVIDENCE',
+      image: '/src/assets/images/stamford_hospital_facade_1790031002708.jpg',
+      resolution: 'Developer Concept',
+    },
     {
       title: 'Stamford Twilight Metropolitan Panorama',
       category: 'Concept Art & Wallpaper',
@@ -54,6 +60,9 @@ export const MediaView: React.FC<MediaViewProps> = ({ setActiveTab }) => {
           </h1>
           <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
             High-resolution screenshots, concept art, wallpapers, and environmental assets documenting the development of Onegodia: Rise of the Digital World™.
+          </p>
+          <p className="text-xs text-amber-300/90 font-mono">
+            Visual concepts are development references only and do not establish Playable or Verified Unreal status.
           </p>
         </div>
       </section>
