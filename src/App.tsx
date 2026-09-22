@@ -22,6 +22,7 @@ import { PlayView } from './views/PlayView';
 import { DevelopmentStatusView } from './views/DevelopmentStatusView';
 import { ProducerView } from './views/ProducerView';
 import { QAView } from './views/QAView';
+import { NPCDialogueAgentView } from './views/NPCDialogueAgentView';
 import { PrototypeView } from './views/PrototypeView';
 import { GameplayView } from './views/GameplayView';
 import { GameplayGridView } from './views/GameplayGridView';
@@ -118,7 +119,6 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <div className="min-h-screen bg-[#07090e] text-slate-200 flex flex-col font-sans selection:bg-blue-600 selection:text-white transition-colors duration-200 relative overflow-hidden">
-        {/* Modern Ambient Mesh & Soft Dot Texture */}
         <div className="absolute inset-0 modern-mesh-bg opacity-70 pointer-events-none z-0"></div>
         <div className="absolute inset-0 modern-dot-pattern opacity-30 pointer-events-none z-0"></div>
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#07090e]/40 to-[#07090e] pointer-events-none z-0"></div>
@@ -145,6 +145,7 @@ export default function App() {
           {activeTab === 'development-status' && <DevelopmentStatusView />}
           {activeTab === 'producer' && <ProducerView />}
           {activeTab === 'qa' && <QAView />}
+          {activeTab === 'npc-dialogue' && <NPCDialogueAgentView />}
 
           {activeTab === 'prototype' && (
             <PrototypeView
@@ -157,7 +158,6 @@ export default function App() {
           )}
 
           {activeTab === 'gameplay' && <GameplayView setActiveTab={setActiveTab} />}
-
           {activeTab === 'gameplay-grid' && <GameplayGridView />}
 
           {activeTab === 'tactical-hud' && (
@@ -195,9 +195,7 @@ export default function App() {
           )}
 
           {activeTab === 'assets' && <AssetsView />}
-
           {activeTab === 'digital-asset-economy' && <DigitalAssetEconomyView />}
-
           {activeTab === 'developers' && <DevelopersView />}
           {activeTab === 'community' && <CommunityView setActiveTab={setActiveTab} />}
           {activeTab === 'media' && <MediaView setActiveTab={setActiveTab} />}
