@@ -19,7 +19,8 @@ import {
   Sun,
   Moon,
   GitBranch,
-  Play
+  Play,
+  Building2
 } from 'lucide-react';
 import { NavigationTab, PlayerProgress } from '../types';
 import { sound } from '../services/audioService';
@@ -60,6 +61,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, progres
     { id: 'tactical-hud', label: 'Tactical HUD', icon: Crosshair },
     { id: 'missions', label: 'Missions', icon: Sparkles },
     { id: 'inventory', label: 'Inventory & Rewards', icon: Package },
+    { id: 'assets', label: 'Assets', icon: Building2 },
     { id: 'digital-asset-economy', label: 'Digital Economy', icon: Coins },
     { id: 'developers', label: 'Developers', icon: Terminal },
     { id: 'community', label: 'Community', icon: Users },
