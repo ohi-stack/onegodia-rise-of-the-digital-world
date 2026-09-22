@@ -10,6 +10,7 @@ export type NavigationTab =
   | 'play'
   | 'development-status'
   | 'producer'
+  | 'qa'
   | 'prototype'
   | 'gameplay'
   | 'gameplay-grid'
