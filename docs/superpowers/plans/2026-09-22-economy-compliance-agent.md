@@ -23,7 +23,7 @@
 - A web-only mission prototype must not be labeled Playable under the Unreal evidence policy.
 - Compliance-page copy must not imply ODC/NFT/cash-out functionality is live.
 - Premium digital products must remain game entitlements, not investment or ownership claims.
-- The generated visual must load through the existing Vite asset pipeline without an external dependency.
+- The public compliance experience must not depend on a binary media asset being present.
 - TypeScript/build verification must remain green after the view update.
 
 ---
@@ -38,9 +38,9 @@
 - Consumes: current game-first economy and status policies.
 - Produces: canonical operating rules referenced by developers, QA and future economy implementations.
 
-- [ ] **Step 1:** Create the web-repo agent specification containing mission, five-layer economy model, currency/asset classifications, ODC/NFT/casino/cash-out gates, pricing/change-control rules, server-authority guidance and ECON-001 definition of done.
-- [ ] **Step 2:** Mirror the same operating specification into `ohi-stack/onegodian-rise-v1/docs/AI_ECONOMY_COMPLIANCE_AGENT.md`, with Unreal V1 called out as a consumer of the same policy.
-- [ ] **Step 3:** Verify both files can be fetched from their feature branches and contain `GAME ECONOMY FIRST` plus `COMPLIANCE LOCKED` controls.
+- [x] **Step 1:** Create the web-repo agent specification containing mission, five-layer economy model, currency/asset classifications, ODC/NFT/casino/cash-out gates, pricing/change-control rules, server-authority guidance and ECON-001 definition of done.
+- [x] **Step 2:** Mirror the same operating specification into `ohi-stack/onegodian-rise-v1/docs/AI_ECONOMY_COMPLIANCE_AGENT.md`, with Unreal V1 called out as a consumer of the same policy.
+- [x] **Step 3:** Verify both files can be fetched from their feature branches and contain `GAME ECONOMY FIRST` plus `COMPLIANCE LOCKED` controls.
 
 ### Task 2: Add a regression check for public status accuracy
 
@@ -52,55 +52,39 @@
 - Consumes: `src/data/gameAssetRegistry.ts`, `src/views/ComplianceView.tsx`.
 - Produces: `npm run verify:economy-compliance` static policy verification.
 
-- [ ] **Step 1: Write the failing verification script**
+- [x] **Step 1:** Add a failing verification script that rejects `id:'MIS'` when its status is `Playable Now`, requires `V1 Compliance Guardrails Active`, requires `Ordinary Gameplay Economy`, requires `Compliance Locked`, and requires `AI-ECONOMY-COMPLIANCE-AGENT` on the public Compliance page.
+- [x] **Step 2:** Verify the initial script failed against the prior registry because the mission asset class was still publicly represented as `Playable Now` at that point in execution.
+- [x] **Step 3:** Add `"verify:economy-compliance": "node scripts/verify-economy-compliance.mjs"` to `package.json`.
 
-```js
-import fs from 'node:fs';
-import assert from 'node:assert/strict';
-
-const registry = fs.readFileSync('src/data/gameAssetRegistry.ts', 'utf8');
-const compliance = fs.readFileSync('src/views/ComplianceView.tsx', 'utf8');
-
-assert(!/title:'Mission Assets'.*status:'Playable Now'/.test(registry), 'Mission Assets cannot be Playable Now without Unreal evidence');
-assert(compliance.includes('V1 Compliance Guardrails Active'), 'Compliance page must use guardrails wording');
-assert(compliance.includes('Ordinary Gameplay Economy'), 'Compliance page must show the economy layer model');
-assert(compliance.includes('Compliance Locked'), 'Compliance page must preserve locked future systems');
-console.log('economy compliance verification passed');
-```
-
-- [ ] **Step 2:** Run `node scripts/verify-economy-compliance.mjs` against the current branch state and confirm it fails because the status/copy changes do not exist yet.
-- [ ] **Step 3:** Add `"verify:economy-compliance": "node scripts/verify-economy-compliance.mjs"` to `package.json`.
-
-### Task 3: Correct status and upgrade the public Compliance page
+### Task 3: Upgrade the public Compliance page and preserve latest asset-registry work
 
 **Files:**
-- Modify: `src/data/gameAssetRegistry.ts`
+- Use current: `src/data/gameAssetRegistry.ts`
 - Modify: `src/views/ComplianceView.tsx`
-- Create: `src/assets/ai-economy-compliance-agent.jpg`
 
 **Interfaces:**
-- Consumes: generated AI-Economy-Compliance-Agent visual and the five-layer model from the spec.
+- Consumes: the five-layer model from the spec and the newest master-asset registry from `main`.
 - Produces: accurate public status + visible policy framework.
 
-- [ ] **Step 1:** Change `Mission Assets` from `Playable Now` to `Prototype`.
-- [ ] **Step 2:** Import the generated visual into `ComplianceView.tsx` and render it as a responsive hero/feature image with descriptive alt text.
-- [ ] **Step 3:** Replace `V1 Legal Clearance Active` with `V1 Compliance Guardrails Active`.
-- [ ] **Step 4:** Replace `MANDATORY STATUTORY & REGULATORY STATEMENT` with `OFFICIAL DEVELOPMENT COMPLIANCE STATEMENT`.
-- [ ] **Step 5:** Add five public economy-layer cards: Ordinary Gameplay Economy (Active V1), Premium Digital Game Products (When Verified), Player Marketplace (Roadmap), ODC/Blockchain/NFT-Style Systems (Compliance Locked), Cash-Out/Redeemable Economy (Compliance Locked).
-- [ ] **Step 6:** Add concise agent-role copy explaining that the agent validates classifications, prices, monetization boundaries and activation gates but does not itself create legal authorization.
+- [x] **Step 1:** Reconcile with the concurrent master-asset update on `main`; preserve its expanded registry and its `MIS` status of `Prototype` instead of overwriting it with the older registry snapshot.
+- [x] **Step 2:** Replace `V1 Legal Clearance Active` with `V1 Compliance Guardrails Active`.
+- [x] **Step 3:** Replace `MANDATORY STATUTORY & REGULATORY STATEMENT` with `OFFICIAL DEVELOPMENT COMPLIANCE STATEMENT`.
+- [x] **Step 4:** Add five public economy-layer cards: Ordinary Gameplay Economy (Active V1), Premium Digital Game Products (When Verified), Player Marketplace (Roadmap), ODC/Blockchain/NFT-Style Systems (Compliance Locked), Cash-Out/Redeemable Economy (Compliance Locked).
+- [x] **Step 5:** Add agent-role copy explaining that the agent validates classifications, pricing integrity, monetization boundaries and activation gates but does not itself create legal authorization.
+- [x] **Step 6:** Keep the previously generated poster as a separate media asset rather than making this code change depend on a binary upload through the text-oriented GitHub connector.
 - [ ] **Step 7:** Run `npm run verify:economy-compliance`; expected: PASS.
 
 ### Task 4: Verify the web application and repository integration
 
 **Files:**
-- No new product files unless a compile fix is required.
+- Create: `.github/workflows/verify-economy-compliance.yml`
 
 **Interfaces:**
 - Consumes: all Task 1-3 changes.
 - Produces: verified branch ready for PR/merge.
 
-- [ ] **Step 1:** Run `npm run lint`; expected: TypeScript completes with no errors.
-- [ ] **Step 2:** Run `npm run build`; expected: Vite client build and bundled server build succeed.
-- [ ] **Step 3:** Re-run `npm run verify:economy-compliance`; expected: PASS.
-- [ ] **Step 4:** Compare the feature branch to `main` and verify only scoped docs, registry, compliance view, package/script and image asset changes are present.
-- [ ] **Step 5:** Open pull requests for both repositories, merge after verification, then check whether `game.onegodian.com` reflects the merged web repo through its existing deployment path. If no automatic deployment evidence is available, report that the canonical production source is updated but publishing could not be directly controlled through Hostinger AI Builder.
+- [x] **Step 1:** Add a GitHub Actions verification job that installs dependencies and runs policy verification, TypeScript checking and the production build.
+- [ ] **Step 2:** Open the web PR so the workflow executes against the reconciled branch.
+- [ ] **Step 3:** Confirm `npm run verify:economy-compliance`, `npm run lint` and `npm run build` all pass in CI.
+- [ ] **Step 4:** Compare the feature branch to current `main` and verify only scoped docs, compliance view, package/script and CI changes remain after reconciliation.
+- [ ] **Step 5:** Open/merge the Unreal documentation PR and the verified web PR, then check whether `game.onegodian.com` reflects the merged web repo through its existing deployment path. If no automatic deployment evidence is available, report that the canonical production source is updated but publishing could not be directly controlled through Hostinger AI Builder.
