@@ -20,7 +20,8 @@ import {
   Moon,
   GitBranch,
   Play,
-  Building2
+  Building2,
+  ClipboardList
 } from 'lucide-react';
 import { NavigationTab, PlayerProgress } from '../types';
 import { sound } from '../services/audioService';
@@ -54,6 +55,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, progres
     { id: 'mvp-v1', label: 'MVP v1.0', icon: Gamepad2 },
     { id: 'play', label: 'Play Stamford', icon: Play },
     { id: 'development-status', label: 'Development Status', icon: GitBranch },
+    { id: 'producer', label: 'Game Producer', icon: ClipboardList },
     { id: 'prototype', label: 'Web Prototype', icon: Gamepad2 },
     { id: 'map', label: 'World Map', icon: MapIcon },
     { id: 'gameplay', label: 'Gameplay', icon: Gamepad2 },
