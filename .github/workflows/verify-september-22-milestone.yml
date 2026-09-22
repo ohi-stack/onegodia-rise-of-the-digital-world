@@ -1,0 +1,19 @@
+name: Verify September 22 milestone integration
+
+on:
+  push:
+    branches:
+      - main
+      - milestone/2026-09-22-browser-3d
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  verify-milestone:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Verify milestone integration
+        run: node scripts/verify-september-22-milestone.mjs
