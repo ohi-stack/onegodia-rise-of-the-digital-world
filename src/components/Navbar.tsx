@@ -21,7 +21,8 @@ import {
   GitBranch,
   Play,
   Building2,
-  ClipboardList
+  ClipboardList,
+  MessageCircle
 } from 'lucide-react';
 import { NavigationTab, PlayerProgress } from '../types';
 import { sound } from '../services/audioService';
@@ -57,6 +58,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, progres
     { id: 'development-status', label: 'Development Status', icon: GitBranch },
     { id: 'producer', label: 'Game Producer', icon: ClipboardList },
     { id: 'qa', label: 'QA & Testing', icon: ShieldCheck },
+    { id: 'npc-dialogue', label: 'NPC Dialogue', icon: MessageCircle },
     { id: 'prototype', label: 'Web Prototype', icon: Gamepad2 },
     { id: 'map', label: 'World Map', icon: MapIcon },
     { id: 'gameplay', label: 'Gameplay', icon: Gamepad2 },
