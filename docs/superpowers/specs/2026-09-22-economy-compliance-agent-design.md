@@ -18,7 +18,7 @@ Use the existing public and engineering surfaces rather than add a new primary r
 - `src/views/ComplianceView.tsx` becomes the primary public policy surface for the agent's five-layer economy model and restrictions.
 - `src/views/DigitalAssetEconomyView.tsx` remains the public roadmap/economy explanation and continues to distinguish ordinary game assets from future marketplace/blockchain systems.
 - `src/data/gameAssetRegistry.ts` must follow `docs/DEVELOPMENT_STATUS_POLICY.md`; web simulation evidence cannot justify `Playable Now` where Unreal build evidence is required.
-- The generated AI-Economy-Compliance-Agent visual is used as a public compliance-page visual asset.
+- The previously generated AI-Economy-Compliance-Agent poster remains a separate media asset. Binary inclusion is not required for this code change because the connected GitHub write path is text-oriented; the public compliance experience must remain complete without depending on that image.
 
 ## Economy Layers
 
@@ -48,13 +48,12 @@ Use the existing public and engineering surfaces rather than add a new primary r
 
 ## Status Correction
 
-`Mission Assets` in `src/data/gameAssetRegistry.ts` must change from `Playable Now` to `Prototype` unless designated Unreal build evidence is linked. This is the smallest correction consistent with the repository's development-status policy.
+The stable rule is that the mission/reward asset class (`id: 'MIS'`) must not be `Playable Now` unless designated Unreal build evidence is linked. During implementation, a concurrent master-asset update on `main` had already renamed the class to `Mission & Reward Assets` and set it to `Prototype`; that newer registry is preserved.
 
 ## Success Criteria
 
 - Both repositories contain the canonical AI-Economy-Compliance-Agent specification.
 - The public Compliance page visibly explains the five-layer economy model and the agent's gatekeeping role.
-- The generated agent visual is displayed on the Compliance page.
 - ODC, NFT, blockchain, wagering, marketplace cash-out and redeemable systems remain visibly locked or roadmap-only.
-- `Mission Assets` no longer claims `Playable Now` without Unreal evidence.
-- The web application passes TypeScript lint and production build verification.
+- The `MIS` asset class does not claim `Playable Now` without Unreal evidence.
+- The web application passes the policy regression check, TypeScript check and production build verification.
