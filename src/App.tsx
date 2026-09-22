@@ -21,6 +21,7 @@ import { MVPV1View } from './views/MVPV1View';
 import { PlayView } from './views/PlayView';
 import { DevelopmentStatusView } from './views/DevelopmentStatusView';
 import { ProducerView } from './views/ProducerView';
+import { QAView } from './views/QAView';
 import { PrototypeView } from './views/PrototypeView';
 import { GameplayView } from './views/GameplayView';
 import { GameplayGridView } from './views/GameplayGridView';
@@ -143,6 +144,7 @@ export default function App() {
 
           {activeTab === 'development-status' && <DevelopmentStatusView />}
           {activeTab === 'producer' && <ProducerView />}
+          {activeTab === 'qa' && <QAView />}
 
           {activeTab === 'prototype' && (
             <PrototypeView
