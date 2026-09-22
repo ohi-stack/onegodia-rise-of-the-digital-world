@@ -62,7 +62,7 @@ export const MapView: React.FC<MapViewProps> = ({
   setMission,
   setActiveTab
 }) => {
-  const [mapMode, setMapMode] = useState<MapMode>('stamford-gis');
+  const [mapMode, setMapMode] = useState<MapMode>('sector7-gameplay');
 
   // Player Position in World Space
   const [playerCoords, setPlayerCoords] = useState<{ x: number; y: number }>(() => {

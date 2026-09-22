@@ -592,6 +592,62 @@ class AudioSynthesizer {
       // ignore
     }
   }
+
+  /**
+   * Subtle Dynamic 'Ding' Sound Effect
+   * Plays a crisp, gentle, high-resolution bell chime for milestone additions,
+   * narrative summary logs, and tactical confirmations.
+   */
+  public playDing(volumeMultiplier: number = 1.0) {
+    if (this.isMuted || (!this.ambientUIEnabled && !this.tacticalAlertsEnabled)) return;
+    try {
+      this.initCtx();
+      if (!this.ctx) return;
+
+      const now = this.ctx.currentTime;
+      const vol = this.volumeLevel * Math.max(0, Math.min(1.5, volumeMultiplier));
+
+      // Dual-harmonic bell structure:
+      // Primary crystal fundamental: 1760 Hz (A6)
+      // Second overtone chime: 2637.02 Hz (E7 - crystalline perfect fifth)
+      // Subtle sparkle overtone: 3520 Hz (A7)
+      const harmonics = [
+        { freq: 1760, peak: 0.13, decay: 0.38, type: 'sine' as OscillatorType },
+        { freq: 2637.02, peak: 0.06, decay: 0.28, type: 'sine' as OscillatorType },
+        { freq: 3520, peak: 0.025, decay: 0.2, type: 'triangle' as OscillatorType },
+      ];
+
+      // Subtle bandpass filter for warm, silky metallic resonance without harsh transients
+      const biquad = this.ctx.createBiquadFilter();
+      biquad.type = 'bandpass';
+      biquad.frequency.setValueAtTime(2200, now);
+      biquad.Q.setValueAtTime(1.1, now);
+      biquad.connect(this.ctx.destination);
+
+      harmonics.forEach(({ freq, peak, decay, type }) => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+
+        // Immediate soft attack, smooth exponential decay
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.linearRampToValueAtTime(peak * vol, now + 0.008);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + decay);
+
+        osc.connect(gain);
+        gain.connect(biquad);
+
+        osc.start(now);
+        osc.stop(now + decay + 0.02);
+      });
+    } catch {
+      // ignore audio errors
+    }
+  }
 }
 
 export const sound = new AudioSynthesizer();
+export const audioService = sound;

@@ -16,12 +16,14 @@ import {
 } from 'lucide-react';
 import { NavigationTab } from '../types';
 import { sound } from '../services/audioService';
+import { CommunityPortal } from '../components/CommunityPortal';
 
 interface CommunityViewProps {
   setActiveTab: (tab: NavigationTab) => void;
 }
 
 type PathId = 'player' | 'developer' | 'creator' | 'tester';
+type CommunitySubTab = 'portal' | 'paths';
 
 const paths = [
   {
@@ -63,6 +65,7 @@ const paths = [
 ];
 
 export const CommunityView: React.FC<CommunityViewProps> = ({ setActiveTab }) => {
+  const [activeSubTab, setActiveSubTab] = useState<CommunitySubTab>('portal');
   const [selectedPath, setSelectedPath] = useState<PathId>('player');
   const [joined, setJoined] = useState(false);
   const [handle, setHandle] = useState('');
@@ -87,7 +90,45 @@ export const CommunityView: React.FC<CommunityViewProps> = ({ setActiveTab }) =>
 
   return (
     <div className="space-y-6 py-2 font-sans">
-      <section className="p-5 rounded-xl bg-[#0c0e14] border border-[#1e2230] overflow-hidden relative">
+      {/* Sub-tab Navigation */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-2 bg-[#0c0e14] border border-[#1e2230] rounded-xl">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { sound.playClick(); setActiveSubTab('portal'); }}
+            className={`px-4 py-2 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-2 ${
+              activeSubTab === 'portal'
+                ? 'bg-cyan-600 text-white shadow-md shadow-cyan-950/40 border border-cyan-400'
+                : 'bg-transparent text-slate-400 hover:text-white hover:bg-slate-900 border border-transparent'
+            }`}
+          >
+            <MessageSquare className="w-4 h-4 text-cyan-300" />
+            <span>Community Portal & Feedback</span>
+          </button>
+
+          <button
+            onClick={() => { sound.playClick(); setActiveSubTab('paths'); }}
+            className={`px-4 py-2 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-2 ${
+              activeSubTab === 'paths'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-950/40 border border-blue-400'
+                : 'bg-transparent text-slate-400 hover:text-white hover:bg-slate-900 border border-transparent'
+            }`}
+          >
+            <Users className="w-4 h-4 text-blue-300" />
+            <span>Founding Roles & Onboarding</span>
+          </button>
+        </div>
+
+        <div className="hidden sm:flex items-center gap-2 text-[11px] font-mono text-slate-400 px-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span>Active Feedback Hub Live</span>
+        </div>
+      </div>
+
+      {activeSubTab === 'portal' ? (
+        <CommunityPortal setActiveTab={setActiveTab} />
+      ) : (
+        <>
+          <section className="p-5 rounded-xl bg-[#0c0e14] border border-[#1e2230] overflow-hidden relative">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.16),transparent_45%)] pointer-events-none" />
         <div className="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
           <div className="max-w-3xl">
@@ -226,6 +267,8 @@ export const CommunityView: React.FC<CommunityViewProps> = ({ setActiveTab }) =>
         </div>
         <button onClick={() => setActiveTab('developers')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-bold shrink-0">Enter Development <ArrowRight className="w-3.5 h-3.5" /></button>
       </section>
+      </>
+      )}
     </div>
   );
 };

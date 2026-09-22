@@ -27,7 +27,8 @@ export type NavigationTab =
   | 'media'
   | 'web-doc'
   | 'players'
-  | 'compliance';
+  | 'compliance'
+  | 'admin';
 
 export type SystemStatus =
   | 'Playable Now'
@@ -239,4 +240,32 @@ export interface MapLandmark {
   nodeFrequency?: string;
   signalResonance?: number;
   explorationObjective?: SectorExplorationObjective;
+}
+
+export interface AdminRecord {
+  adminId: string;
+  email: string;
+  role: 'superadmin' | 'game_master' | 'auditor';
+  createdAt: string;
+}
+
+export interface SystemBroadcast {
+  id: string;
+  title: string;
+  message: string;
+  severity: 'info' | 'warning' | 'critical';
+  active: boolean;
+  authorEmail?: string;
+  createdAt: string;
+}
+
+export interface SystemConfig {
+  configId: string;
+  creditMultiplier: number;
+  odcMintRate: number;
+  relicShardDensity: 'Low' | 'Standard' | 'High' | 'Overcharged';
+  pvpEngagementStatus: 'Active' | 'Zone-Restricted' | 'Ceasefire';
+  maintenanceMode: boolean;
+  updatedAt: string;
+  updatedBy?: string;
 }

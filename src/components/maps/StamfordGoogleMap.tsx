@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   APIProvider,
   Map,
@@ -37,6 +37,7 @@ import {
   CorridorRoutePreset,
 } from '../../data/stamfordLocations';
 import { StamfordRouteRenderer, RouteCalculationResult } from './StamfordRouteRenderer';
+import { StamfordVectorMap } from './StamfordVectorMap';
 import { TACTICAL_DARK_MAP_STYLES } from './mapStyles';
 import { PlayerProgress } from '../../types';
 import { sound } from '../../services/audioService';
@@ -56,7 +57,8 @@ export const StamfordGoogleMap: React.FC<StamfordGoogleMapProps> = ({
   onWarpLocation,
   onInspectNode,
 }) => {
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+  const apiKey = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '').trim();
+  const hasValidApiKey = Boolean(apiKey && apiKey !== '' && apiKey !== 'MY_GOOGLE_MAPS_API_KEY');
 
   // Active Route State
   const [selectedPreset, setSelectedPreset] = useState<CorridorRoutePreset>(
@@ -150,6 +152,62 @@ export const StamfordGoogleMap: React.FC<StamfordGoogleMapProps> = ({
     sound.playClick();
   };
 
+  // Route calculation in autonomous Vector GIS mode (when Google Maps API key is not active)
+  useEffect(() => {
+    if (hasValidApiKey) return;
+
+    const getHaversine = (p1: { lat: number; lng: number }, p2: { lat: number; lng: number }) => {
+      const R = 6371e3; // meters
+      const phi1 = (p1.lat * Math.PI) / 180;
+      const phi2 = (p2.lat * Math.PI) / 180;
+      const deltaPhi = ((p2.lat - p1.lat) * Math.PI) / 180;
+      const deltaLambda = ((p2.lng - p1.lng) * Math.PI) / 180;
+      const a =
+        Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+        Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    };
+
+    let totalMeters = 0;
+    const points = [
+      { lat: originPoi.lat, lng: originPoi.lng },
+      ...waypointPois.map((w) => ({ lat: w.lat, lng: w.lng })),
+      { lat: destinationPoi.lat, lng: destinationPoi.lng },
+    ];
+    for (let i = 0; i < points.length - 1; i++) {
+      totalMeters += getHaversine(points[i], points[i + 1]);
+    }
+    const roadMeters = Math.round(totalMeters * 1.28);
+    const speed =
+      travelMode === 'DRIVE' ? 11.2 : travelMode === 'BICYCLE' ? 4.8 : travelMode === 'TRANSIT' ? 8.5 : 1.35;
+    const durationSeconds = Math.round(roadMeters / speed);
+    const miles = (roadMeters * 0.000621371).toFixed(1);
+    const km = (roadMeters / 1000).toFixed(1);
+    const minutes = Math.max(1, Math.round(durationSeconds / 60));
+
+    setRouteResult({
+      distanceMeters: roadMeters,
+      durationSeconds,
+      formattedDistance: `${miles} mi (${km} km)`,
+      formattedDuration: minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes} min`,
+      status: 'computed',
+      steps: [
+        {
+          instruction: `Depart ${originPoi.shortName} via Washington Blvd corridor`,
+          distance: `${(parseFloat(miles) * 0.4).toFixed(1)} mi`,
+        },
+        ...waypointPois.map((w) => ({
+          instruction: `Pass corridor checkpoint: ${w.shortName}`,
+          distance: 'En route',
+        })),
+        {
+          instruction: `Arrive at destination: ${destinationPoi.shortName}`,
+          distance: `${(parseFloat(miles) * 0.6).toFixed(1)} mi`,
+        },
+      ],
+    });
+  }, [hasValidApiKey, originPoi, destinationPoi, waypointPois, travelMode]);
+
   return (
     <div className="space-y-4 font-mono text-slate-200">
       {/* Top Header Card */}
@@ -159,7 +217,7 @@ export const StamfordGoogleMap: React.FC<StamfordGoogleMapProps> = ({
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/50 text-cyan-300">
                 <Compass className="w-3 h-3 text-cyan-400" />
-                Google Maps Platform
+                {hasValidApiKey ? 'Google Maps Platform' : 'Vector GIS Simulation'}
               </span>
               <span className="text-[10px] text-slate-400">
                 Stamford, CT Corridor · Unreal Engine Reference
@@ -315,160 +373,179 @@ export const StamfordGoogleMap: React.FC<StamfordGoogleMapProps> = ({
             </div>
           </div>
 
-          {/* Google Map Viewport */}
+          {/* Map Viewport: Conditionally Render Live Google Maps or Autonomous Vector GIS */}
           <div className="relative flex-1 w-full h-full min-h-[500px]">
-            <APIProvider apiKey={apiKey} libraries={['routes', 'marker', 'geometry', 'places']}>
-              <Map
-                style={{ width: '100%', height: '100%' }}
-                defaultCenter={{ lat: 41.0535, lng: -73.5435 }}
-                defaultZoom={14}
-                mapId="DEMO_MAP_ID"
-                mapTypeId={
-                  mapTheme === 'hybrid'
-                    ? 'hybrid'
-                    : mapTheme === 'tactical-dark'
-                    ? 'roadmap'
-                    : 'roadmap'
-                }
-                styles={mapTheme === 'tactical-dark' ? TACTICAL_DARK_MAP_STYLES : undefined}
-                options={{
-                  disableDefaultUI: false,
-                  zoomControl: true,
-                  streetViewControl: true,
-                  mapTypeControl: false,
-                  fullscreenControl: true,
-                }}
-                internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
-              >
-                {/* Real-World Route Renderer */}
-                <StamfordRouteRenderer
-                  origin={{ lat: originPoi.lat, lng: originPoi.lng, name: originPoi.name }}
-                  destination={{
-                    lat: destinationPoi.lat,
-                    lng: destinationPoi.lng,
-                    name: destinationPoi.name,
+            {hasValidApiKey ? (
+              <APIProvider apiKey={apiKey} libraries={['routes', 'marker', 'geometry', 'places']}>
+                <Map
+                  style={{ width: '100%', height: '100%' }}
+                  defaultCenter={{ lat: 41.0535, lng: -73.5435 }}
+                  defaultZoom={14}
+                  mapId="DEMO_MAP_ID"
+                  mapTypeId={
+                    mapTheme === 'hybrid'
+                      ? 'hybrid'
+                      : mapTheme === 'tactical-dark'
+                      ? 'roadmap'
+                      : 'roadmap'
+                  }
+                  styles={mapTheme === 'tactical-dark' ? TACTICAL_DARK_MAP_STYLES : undefined}
+                  options={{
+                    disableDefaultUI: false,
+                    zoomControl: true,
+                    streetViewControl: true,
+                    mapTypeControl: false,
+                    fullscreenControl: true,
                   }}
-                  waypoints={waypointPois.map((w) => ({
-                    lat: w.lat,
-                    lng: w.lng,
-                    name: w.name,
-                  }))}
-                  travelMode={travelMode}
-                  strokeColor="#00ffff"
-                  onRouteCalculated={setRouteResult}
-                />
+                  internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
+                >
+                  {/* Real-World Route Renderer */}
+                  <StamfordRouteRenderer
+                    origin={{ lat: originPoi.lat, lng: originPoi.lng, name: originPoi.name }}
+                    destination={{
+                      lat: destinationPoi.lat,
+                      lng: destinationPoi.lng,
+                      name: destinationPoi.name,
+                    }}
+                    waypoints={waypointPois.map((w) => ({
+                      lat: w.lat,
+                      lng: w.lng,
+                      name: w.name,
+                    }))}
+                    travelMode={travelMode}
+                    strokeColor="#00ffff"
+                    onRouteCalculated={setRouteResult}
+                  />
 
-                {/* Render Advanced Markers for Stamford POIs */}
-                {filteredPois.map((poi) => {
-                  const isSelected = selectedPoiId === poi.id;
-                  const isOrigin = originId === poi.id;
-                  const isDestination = destinationId === poi.id;
-                  const isWaypoint = waypointPois.some((w) => w.id === poi.id);
+                  {/* Render Advanced Markers for Stamford POIs */}
+                  {filteredPois.map((poi) => {
+                    const isSelected = selectedPoiId === poi.id;
+                    const isOrigin = originId === poi.id;
+                    const isDestination = destinationId === poi.id;
+                    const isWaypoint = waypointPois.some((w) => w.id === poi.id);
 
-                  return (
-                    <AdvancedMarker
-                      key={poi.id}
-                      position={{ lat: poi.lat, lng: poi.lng }}
-                      title={poi.name}
-                      onClick={() => handleSelectPoi(poi)}
+                    return (
+                      <AdvancedMarker
+                        key={poi.id}
+                        position={{ lat: poi.lat, lng: poi.lng }}
+                        title={poi.name}
+                        onClick={() => handleSelectPoi(poi)}
+                      >
+                        <Pin
+                          background={
+                            isOrigin
+                              ? '#10b981' // Green start
+                              : isDestination
+                              ? '#a855f7' // Purple end
+                              : isWaypoint
+                              ? '#06b6d4' // Cyan waypoint
+                              : poi.color
+                          }
+                          borderColor="#050608"
+                          glyphColor="#ffffff"
+                          scale={isSelected || isOrigin || isDestination ? 1.35 : 1.0}
+                        />
+                      </AdvancedMarker>
+                    );
+                  })}
+
+                  {/* InfoWindow for Clicked POI */}
+                  {infoWindowPoi && (
+                    <InfoWindow
+                      position={{ lat: infoWindowPoi.lat, lng: infoWindowPoi.lng }}
+                      onCloseClick={() => setInfoWindowPoi(null)}
                     >
-                      <Pin
-                        background={
-                          isOrigin
-                            ? '#10b981' // Green start
-                            : isDestination
-                            ? '#a855f7' // Purple end
-                            : isWaypoint
-                            ? '#06b6d4' // Cyan waypoint
-                            : poi.color
-                        }
-                        borderColor="#050608"
-                        glyphColor="#ffffff"
-                        scale={isSelected || isOrigin || isDestination ? 1.35 : 1.0}
-                      />
-                    </AdvancedMarker>
-                  );
-                })}
-
-                {/* InfoWindow for Clicked POI */}
-                {infoWindowPoi && (
-                  <InfoWindow
-                    position={{ lat: infoWindowPoi.lat, lng: infoWindowPoi.lng }}
-                    onCloseClick={() => setInfoWindowPoi(null)}
-                  >
-                    <div className="p-1 max-w-[240px] text-slate-900 font-sans">
-                      <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-cyan-800">
-                        <span>{infoWindowPoi.category}</span>
-                        {infoWindowPoi.isCorridorCheckpoint && (
-                          <span className="px-1 rounded bg-cyan-100 text-cyan-900 text-[9px]">
-                            Checkpoint #{infoWindowPoi.corridorOrder}
-                          </span>
-                        )}
-                      </div>
-                      <h4 className="font-bold text-xs mt-0.5 text-slate-950">
-                        {infoWindowPoi.name}
-                      </h4>
-                      <p className="text-[11px] text-slate-600 mt-1 leading-snug">
-                        {infoWindowPoi.description}
-                      </p>
-                      <div className="mt-2 pt-1 border-t border-slate-200 flex items-center justify-between text-[10px] gap-2">
-                        {onInspectNode && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              sound.playClick();
-                              onInspectNode(infoWindowPoi);
-                            }}
-                            className="px-1.5 py-0.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center gap-1"
-                          >
-                            <Target className="w-2.5 h-2.5" />
-                            <span>Inspect Node</span>
-                          </button>
-                        )}
-                        <div className="flex items-center gap-1.5 ml-auto">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setDestinationId(infoWindowPoi.id);
-                              sound.playClick();
-                            }}
-                            className="text-cyan-700 hover:text-cyan-900 font-semibold underline"
-                          >
-                            Route
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleFastTravel(infoWindowPoi)}
-                            className="px-1.5 py-0.5 rounded bg-cyan-700 hover:bg-cyan-800 text-white font-medium"
-                          >
-                            Warp
-                          </button>
+                      <div className="p-1 max-w-[240px] text-slate-900 font-sans">
+                        <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-cyan-800">
+                          <span>{infoWindowPoi.category}</span>
+                          {infoWindowPoi.isCorridorCheckpoint && (
+                            <span className="px-1 rounded bg-cyan-100 text-cyan-900 text-[9px]">
+                              Checkpoint #{infoWindowPoi.corridorOrder}
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="font-bold text-xs mt-0.5 text-slate-950">
+                          {infoWindowPoi.name}
+                        </h4>
+                        <p className="text-[11px] text-slate-600 mt-1 leading-snug">
+                          {infoWindowPoi.description}
+                        </p>
+                        <div className="mt-2 pt-1 border-t border-slate-200 flex items-center justify-between text-[10px] gap-2">
+                          {onInspectNode && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                sound.playClick();
+                                onInspectNode(infoWindowPoi);
+                              }}
+                              className="px-1.5 py-0.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center gap-1"
+                            >
+                              <Target className="w-2.5 h-2.5" />
+                              <span>Inspect Node</span>
+                            </button>
+                          )}
+                          <div className="flex items-center gap-1.5 ml-auto">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDestinationId(infoWindowPoi.id);
+                                sound.playClick();
+                              }}
+                              className="text-cyan-700 hover:text-cyan-900 font-semibold underline"
+                            >
+                              Route
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleFastTravel(infoWindowPoi)}
+                              className="px-1.5 py-0.5 rounded bg-cyan-700 hover:bg-cyan-800 text-white font-medium"
+                            >
+                              Warp
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </InfoWindow>
-                )}
+                    </InfoWindow>
+                  )}
 
-                {/* Map Control: Legend HUD Overlay */}
-                <MapControl position={ControlPosition.TOP_LEFT}>
-                  <div className="m-3 p-2.5 rounded-lg bg-[#080d18]/90 border border-cyan-500/40 text-cyan-200 backdrop-blur shadow-lg text-[10px] space-y-1 font-mono pointer-events-auto">
-                    <div className="flex items-center gap-1.5 font-bold text-white uppercase text-[11px]">
-                      <Crosshair className="w-3.5 h-3.5 text-cyan-400" />
-                      <span>Live GIS Corridor</span>
+                  {/* Map Control: Legend HUD Overlay */}
+                  <MapControl position={ControlPosition.TOP_LEFT}>
+                    <div className="m-3 p-2.5 rounded-lg bg-[#080d18]/90 border border-cyan-500/40 text-cyan-200 backdrop-blur shadow-lg text-[10px] space-y-1 font-mono pointer-events-auto">
+                      <div className="flex items-center gap-1.5 font-bold text-white uppercase text-[11px]">
+                        <Crosshair className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>Live GIS Corridor</span>
+                      </div>
+                      <div className="text-slate-400 text-[9px]">
+                        Origin: <span className="text-emerald-300 font-semibold">{originPoi.shortName}</span>
+                      </div>
+                      <div className="text-slate-400 text-[9px]">
+                        Dest: <span className="text-purple-300 font-semibold">{destinationPoi.shortName}</span>
+                      </div>
+                      <div className="text-slate-400 text-[9px]">
+                        Mode: <span className="text-amber-300 font-semibold">{travelMode}</span>
+                      </div>
                     </div>
-                    <div className="text-slate-400 text-[9px]">
-                      Origin: <span className="text-emerald-300 font-semibold">{originPoi.shortName}</span>
-                    </div>
-                    <div className="text-slate-400 text-[9px]">
-                      Dest: <span className="text-purple-300 font-semibold">{destinationPoi.shortName}</span>
-                    </div>
-                    <div className="text-slate-400 text-[9px]">
-                      Mode: <span className="text-amber-300 font-semibold">{travelMode}</span>
-                    </div>
-                  </div>
-                </MapControl>
-              </Map>
-            </APIProvider>
+                  </MapControl>
+                </Map>
+              </APIProvider>
+            ) : (
+              <StamfordVectorMap
+                originPoi={originPoi}
+                destinationPoi={destinationPoi}
+                waypointPois={waypointPois}
+                filteredPois={filteredPois}
+                selectedPoiId={selectedPoiId}
+                onSelectPoi={handleSelectPoi}
+                onInspectNode={onInspectNode}
+                onSetDestination={(id) => {
+                  setDestinationId(id);
+                  sound.playClick();
+                }}
+                onFastTravel={handleFastTravel}
+                travelMode={travelMode}
+                mapTheme={mapTheme}
+              />
+            )}
           </div>
         </div>
 

@@ -1,0 +1,162 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Global Security Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.email == 'onegodianone@gmail.com' && request.auth.token.email_verified == true) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Entity Validation Helpers
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'displayName']) &&
+        data.uid is string &&
+        data.displayName is string &&
+        data.displayName.size() >= 1 &&
+        data.displayName.size() <= 64 &&
+        (!('email' in data) || (data.email is string && data.email.size() <= 128)) &&
+        (!('credits' in data) || (data.credits is number && data.credits >= 0)) &&
+        (!('rank' in data) || (data.rank is string && data.rank.size() <= 64));
+    }
+
+    function isValidPlayerProgress(data) {
+      return data.keys().hasAll(['playerId', 'credits']) &&
+        data.playerId is string &&
+        data.credits is number &&
+        data.credits >= 0 &&
+        (!('odcSimulatedBalance' in data) || (data.odcSimulatedBalance is number)) &&
+        (!('hasVehicleUnlocked' in data) || (data.hasVehicleUnlocked is bool)) &&
+        (!('activeMissionId' in data) || (data.activeMissionId is string && data.activeMissionId.size() <= 64)) &&
+        (!('missionsCompleted' in data) || (data.missionsCompleted is list && data.missionsCompleted.size() <= 100)) &&
+        (!('collectedFragments' in data) || (data.collectedFragments is list && data.collectedFragments.size() <= 100)) &&
+        (!('lastWarpLocation' in data) || (data.lastWarpLocation is string && data.lastWarpLocation.size() <= 128)) &&
+        (!('inventory' in data) || (data.inventory is string && data.inventory.size() <= 16384));
+    }
+
+    function isValidExplorationDirective(data) {
+      return data.keys().hasAll(['id', 'title', 'targetNodeId']) &&
+        data.id is string &&
+        data.title is string &&
+        data.title.size() >= 1 &&
+        data.title.size() <= 128 &&
+        data.targetNodeId is string &&
+        data.targetNodeId.size() <= 64 &&
+        (!('targetZone' in data) || (data.targetZone is string && data.targetZone.size() <= 128)) &&
+        (!('status' in data) || (data.status is string && data.status.size() <= 64)) &&
+        (!('assignedOperativeUid' in data) || (data.assignedOperativeUid is string && data.assignedOperativeUid.size() <= 128)) &&
+        (!('rewardCredits' in data) || (data.rewardCredits is number && data.rewardCredits >= 0));
+    }
+
+    function isValidAdminRecord(data) {
+      return data.keys().hasAll(['adminId', 'email', 'role']) &&
+        data.adminId is string &&
+        data.email is string &&
+        data.email.size() <= 128 &&
+        data.role is string &&
+        data.role.size() <= 64;
+    }
+
+    function isValidSystemBroadcast(data) {
+      return data.keys().hasAll(['id', 'title', 'message', 'severity', 'active']) &&
+        data.id is string &&
+        data.title is string &&
+        data.title.size() >= 1 &&
+        data.title.size() <= 128 &&
+        data.message is string &&
+        data.message.size() >= 1 &&
+        data.message.size() <= 2048 &&
+        data.severity is string &&
+        (data.severity == 'info' || data.severity == 'warning' || data.severity == 'critical') &&
+        data.active is bool &&
+        (!('authorEmail' in data) || (data.authorEmail is string && data.authorEmail.size() <= 128));
+    }
+
+    function isValidSystemConfig(data) {
+      return data.keys().hasAll(['configId']) &&
+        data.configId is string &&
+        (!('creditMultiplier' in data) || (data.creditMultiplier is number && data.creditMultiplier >= 0.1 && data.creditMultiplier <= 10.0)) &&
+        (!('odcMintRate' in data) || (data.odcMintRate is number && data.odcMintRate >= 0)) &&
+        (!('relicShardDensity' in data) || (data.relicShardDensity is string && data.relicShardDensity.size() <= 64)) &&
+        (!('pvpEngagementStatus' in data) || (data.pvpEngagementStatus is string && data.pvpEngagementStatus.size() <= 64)) &&
+        (!('maintenanceMode' in data) || (data.maintenanceMode is bool)) &&
+        (!('updatedBy' in data) || (data.updatedBy is string && data.updatedBy.size() <= 128));
+    }
+
+    // 1. Users Collection (Profile and Credentials)
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming());
+      allow update: if (isOwner(userId) || isAdmin()) && isValidId(userId) && isValidUserProfile(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // 2. Player Progress Collection (Persistent Game State)
+    match /player_progress/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if (isOwner(userId) || isAdmin()) && isValidId(userId) && isValidPlayerProgress(incoming());
+      allow update: if (isOwner(userId) || isAdmin()) && isValidId(userId) && isValidPlayerProgress(incoming());
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
+    // 3. Exploration Directives Collection (Recon Directives)
+    match /exploration_directives/{directiveId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if (isSignedIn() || isAdmin()) && isValidId(directiveId) && isValidExplorationDirective(incoming());
+      allow update: if (isSignedIn() || isAdmin()) && isValidId(directiveId) && isValidExplorationDirective(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // 4. Admins Collection (Access Clearance Registry)
+    match /admins/{adminId} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow create, update: if isAdmin() && isValidId(adminId) && isValidAdminRecord(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // 5. System Broadcasts Collection (Tactical Transmissions & Alerts)
+    match /system_broadcasts/{broadcastId} {
+      allow get, list: if true;
+      allow create, update: if isAdmin() && isValidId(broadcastId) && isValidSystemBroadcast(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // 6. System Configuration Collection (Global Engine & Simulated Economy)
+    match /system_config/{configId} {
+      allow get, list: if true;
+      allow create, update: if isAdmin() && isValidId(configId) && isValidSystemConfig(incoming());
+      allow delete: if isAdmin();
+    }
+  }
+}

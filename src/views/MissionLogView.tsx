@@ -31,11 +31,25 @@ import {
   Search,
   Filter,
   Eye,
-  Info
+  Info,
+  Bell,
+  Plus,
+  X,
+  MessageSquarePlus,
+  Send
 } from 'lucide-react';
 import { Mission, MissionObjective, PlayerProgress, NavigationTab, ObjectiveReward } from '../types';
-import { sound } from '../services/audioService';
+import { audioService, sound } from '../services/audioService';
 import { generateProceduralNarrative, NarrativeSummaryBundle } from '../utils/proceduralNarrative';
+
+export interface CustomNarrativeSummary {
+  id: string;
+  timestamp: string;
+  author: string;
+  title: string;
+  content: string;
+  category: 'debrief' | 'intel' | 'chronicle' | 'transmission';
+}
 
 interface MissionLogViewProps {
   mission: Mission;
@@ -45,7 +59,7 @@ interface MissionLogViewProps {
   setActiveTab?: (tab: NavigationTab) => void;
 }
 
-type NarrativeTab = 'overview' | 'comms' | 'chronicle' | 'aar' | 'telemetry';
+type NarrativeTab = 'overview' | 'comms' | 'chronicle' | 'aar' | 'telemetry' | 'field_logs';
 type MilestoneFilter = 'all' | 'completed' | 'active' | 'pending';
 
 export const MissionLogView: React.FC<MissionLogViewProps> = ({
@@ -64,6 +78,95 @@ export const MissionLogView: React.FC<MissionLogViewProps> = ({
   const [isPlayingCommsAudio, setIsPlayingCommsAudio] = useState(false);
   const [currentAudioIndex, setCurrentAudioIndex] = useState(0);
   const [liveElapsedSeconds, setLiveElapsedSeconds] = useState(0);
+
+  // Custom narrative summaries logged by operative or tactical command
+  const [customNarrativeSummaries, setCustomNarrativeSummaries] = useState<CustomNarrativeSummary[]>(() => {
+    try {
+      const saved = localStorage.getItem('onegodia_mission_narrative_logs_v1');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // ignore
+    }
+    return [
+      {
+        id: 'narrative-init-1',
+        timestamp: new Date(Date.now() - 180000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        author: 'Aria Pulse Dispatch',
+        title: 'Initial Quantum Telemetry Calibration',
+        content: 'Grid sensors calibrated along Washington Blvd. Relic harmonic frequencies identified within acceptable noise margins.',
+        category: 'debrief'
+      }
+    ];
+  });
+
+  // Modal states for creating new milestone or narrative summary
+  const [isAddMilestoneModalOpen, setIsAddMilestoneModalOpen] = useState(false);
+  const [isAddNarrativeModalOpen, setIsAddNarrativeModalOpen] = useState(false);
+
+  // Form states for adding milestone
+  const [newMilestoneDesc, setNewMilestoneDesc] = useState('');
+  const [newMilestoneZone, setNewMilestoneZone] = useState('Stamford Sector 7');
+  const [newMilestoneCredits, setNewMilestoneCredits] = useState('50');
+
+  // Form states for adding narrative summary
+  const [newNarrativeTitle, setNewNarrativeTitle] = useState('');
+  const [newNarrativeAuthor, setNewNarrativeAuthor] = useState('Field Operative [Local Unit]');
+  const [newNarrativeCategory, setNewNarrativeCategory] = useState<'debrief' | 'intel' | 'chronicle' | 'transmission'>('debrief');
+  const [newNarrativeContent, setNewNarrativeContent] = useState('');
+
+  // Audio visual notification toast for ding trigger
+  const [audioFeedbackToast, setAudioFeedbackToast] = useState<{
+    visible: boolean;
+    type: 'milestone' | 'narrative';
+    message: string;
+  } | null>(null);
+
+  const audioToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const triggerAudioVisualCue = (type: 'milestone' | 'narrative', message: string) => {
+    if (audioToastTimeoutRef.current) clearTimeout(audioToastTimeoutRef.current);
+    setAudioFeedbackToast({ visible: true, type, message });
+    audioToastTimeoutRef.current = setTimeout(() => {
+      setAudioFeedbackToast(null);
+    }, 3200);
+  };
+
+  // Dynamic Audio Trigger: Monitor when a new milestone is added to mission.objectives
+  const prevMilestonesCountRef = useRef<number>(mission.objectives.length);
+  const isInitialMilestoneMountRef = useRef<boolean>(true);
+
+  useEffect(() => {
+    if (isInitialMilestoneMountRef.current) {
+      isInitialMilestoneMountRef.current = false;
+      return;
+    }
+    if (mission.objectives.length > prevMilestonesCountRef.current) {
+      const latestObj = mission.objectives[mission.objectives.length - 1];
+      audioService.playDing(1.1);
+      triggerAudioVisualCue(
+        'milestone',
+        `New Milestone Added to Log: Step 0${latestObj.stepNumber} - ${latestObj.description.slice(0, 36)}...`
+      );
+    }
+    prevMilestonesCountRef.current = mission.objectives.length;
+  }, [mission.objectives.length, mission.objectives]);
+
+  // Dynamic Audio Trigger: Monitor when a new narrative summary is added to the log
+  const prevNarrativeCountRef = useRef<number>(customNarrativeSummaries.length);
+  const isInitialNarrativeMountRef = useRef<boolean>(true);
+
+  useEffect(() => {
+    if (isInitialNarrativeMountRef.current) {
+      isInitialNarrativeMountRef.current = false;
+      return;
+    }
+    if (customNarrativeSummaries.length > prevNarrativeCountRef.current) {
+      const latest = customNarrativeSummaries[0];
+      audioService.playDing(1.0);
+      triggerAudioVisualCue('narrative', `New Narrative Summary Added: "${latest.title}"`);
+    }
+    prevNarrativeCountRef.current = customNarrativeSummaries.length;
+  }, [customNarrativeSummaries.length, customNarrativeSummaries]);
 
   // Reference for audio interval
   const audioIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -143,11 +246,88 @@ export const MissionLogView: React.FC<MissionLogViewProps> = ({
     return `${d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} • ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
   };
 
-  // Regenerate procedural narrative with seed variation
+  // Regenerate procedural narrative with seed variation & audio feedback
   const handleRegenerateNarrative = () => {
     sound.playClick();
-    sound.playRadarScan();
+    audioService.playDing(1.0);
+    triggerAudioVisualCue('narrative', 'Procedural Narrative Resynthesized & Logged');
     setSeedModifier(prev => prev + 1);
+  };
+
+  // Add a new milestone directly to the mission directive log
+  const handleAddNewMilestone = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMilestoneDesc.trim() || !setMission) return;
+
+    sound.playClick();
+    const now = Date.now();
+    const newObjective: MissionObjective = {
+      id: `milestone-${now}-${Math.random().toString(36).substring(2, 6)}`,
+      stepNumber: mission.objectives.length + 1,
+      description: newMilestoneDesc.trim(),
+      isCompleted: false,
+      targetZone: newMilestoneZone.trim() || 'Stamford Sector 7',
+      targetCoordinates: {
+        x: 350 + Math.floor(Math.random() * 80),
+        y: 420 + Math.floor(Math.random() * 80)
+      },
+      rewards: [
+        {
+          type: 'credits',
+          name: 'Tactical Recon Bounty',
+          amount: Number(newMilestoneCredits) || 50
+        }
+      ]
+    };
+
+    setMission(prev => {
+      const nextObjectives = [...prev.objectives, newObjective];
+      const nextMission = {
+        ...prev,
+        objectives: nextObjectives
+      };
+      try {
+        localStorage.setItem('onegodia_mission_001_v1', JSON.stringify(nextMission));
+      } catch (err) {
+        console.error(err);
+      }
+      return nextMission;
+    });
+
+    setNewMilestoneDesc('');
+    setIsAddMilestoneModalOpen(false);
+  };
+
+  // Add a new narrative summary debrief/log to the mission archive
+  const handleAddNewNarrativeSummary = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newNarrativeTitle.trim() || !newNarrativeContent.trim()) return;
+
+    sound.playClick();
+    const now = Date.now();
+    const d = new Date(now);
+    const newEntry: CustomNarrativeSummary = {
+      id: `narrative-${now}`,
+      timestamp: `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} • ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+      author: newNarrativeAuthor.trim() || 'Field Operative',
+      title: newNarrativeTitle.trim(),
+      content: newNarrativeContent.trim(),
+      category: newNarrativeCategory
+    };
+
+    setCustomNarrativeSummaries(prev => {
+      const updated = [newEntry, ...prev];
+      try {
+        localStorage.setItem('onegodia_mission_narrative_logs_v1', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+
+    setNewNarrativeTitle('');
+    setNewNarrativeContent('');
+    setIsAddNarrativeModalOpen(false);
   };
 
   // Advance to next milestone manually (interactive simulator)
@@ -368,8 +548,39 @@ ${mission.objectives
   }, [mission.objectives, mission.currentObjectiveIndex, mission.status, milestoneFilter, searchQuery]);
 
   return (
-    <div className="w-full space-y-6 font-sans py-2">
+    <div className="w-full space-y-6 font-sans py-2 relative">
       
+      {/* Dynamic Audio Feedback Trigger Toast */}
+      {audioFeedbackToast?.visible && (
+        <div
+          id="audio-ding-toast"
+          className="fixed top-20 right-4 sm:right-8 z-50 animate-in fade-in slide-in-from-top-4 duration-300 pointer-events-auto"
+        >
+          <div className="px-4 py-3 rounded-2xl bg-[#080d19]/95 border border-cyan-400 shadow-2xl shadow-cyan-950/90 backdrop-blur-md flex items-center gap-3 font-mono text-xs text-white max-w-md ring-1 ring-cyan-500/40">
+            <div className="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-400 flex items-center justify-center text-cyan-300 shrink-0">
+              <Bell className="w-4 h-4 text-cyan-300 animate-bounce" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-cyan-400">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping shrink-0" />
+                <span>Audio Cue Triggered: Subtle &apos;Ding&apos;</span>
+              </div>
+              <div className="text-slate-200 font-sans text-xs mt-0.5 truncate">
+                {audioFeedbackToast.message}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAudioFeedbackToast(null)}
+              className="text-slate-400 hover:text-white p-1 text-xs"
+              title="Dismiss notification"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* =========================================================
           HERO STATUS & METRICS HEADER BANNER
          ========================================================= */}
@@ -399,6 +610,25 @@ ${mission.objectives
 
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono text-slate-400 bg-slate-900 border border-slate-800">
                 Stamford Sector 7
+              </span>
+
+              {/* Dynamic Audio Feedback Trigger Badge */}
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-cyan-950/70 text-cyan-300 border border-cyan-500/40 flex items-center gap-1.5 shadow-sm">
+                <Bell className="w-3 h-3 text-cyan-400 animate-pulse" />
+                <span>Audio Trigger: Armed (Ding on Log)</span>
+                <button
+                  type="button"
+                  id="test-audio-ding-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    audioService.playDing(1.0);
+                    triggerAudioVisualCue('milestone', "Audio Feedback Test: Subtle Bell 'Ding' Chime Played");
+                  }}
+                  className="ml-1 px-1.5 py-0.2 rounded bg-cyan-500/20 hover:bg-cyan-500 hover:text-black text-[9px] text-cyan-200 transition-colors"
+                  title="Test subtle 'ding' sound effect"
+                >
+                  Test 🔔
+                </button>
               </span>
             </div>
 
@@ -588,10 +818,24 @@ ${mission.objectives
 
               <div className="flex items-center gap-2 self-start sm:self-auto">
                 <button
+                  id="add-narrative-summary-btn"
+                  type="button"
+                  onClick={() => {
+                    sound.playClick();
+                    setIsAddNarrativeModalOpen(true);
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-cyan-950/80 border border-cyan-500/50 hover:bg-cyan-900 text-cyan-200 hover:text-white text-xs font-mono flex items-center gap-1.5 transition-all shadow-sm"
+                  title="Add a custom narrative summary entry to the log"
+                >
+                  <MessageSquarePlus className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>+ Log Summary</span>
+                </button>
+
+                <button
                   id="regenerate-narrative-btn"
                   onClick={handleRegenerateNarrative}
                   className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 hover:border-cyan-400 text-slate-300 hover:text-cyan-300 text-xs font-mono flex items-center gap-1.5 transition-all"
-                  title="Synthesize new procedural story variation"
+                  title="Synthesize new procedural story variation (triggers audio chime)"
                 >
                   <RefreshCw className="w-3 h-3" />
                   <span>Resynthesize</span>
@@ -683,6 +927,22 @@ ${mission.objectives
                 <Activity className="w-3 h-3" />
                 <span>Telemetry</span>
               </button>
+
+              <button
+                id="field-logs-tab-btn"
+                onClick={() => {
+                  sound.playClick();
+                  setActiveNarrativeTab('field_logs');
+                }}
+                className={`px-3 py-1.5 rounded-lg border flex items-center gap-1.5 transition-colors ${
+                  activeNarrativeTab === 'field_logs'
+                    ? 'bg-blue-600 text-white border-blue-500 font-bold'
+                    : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
+                }`}
+              >
+                <MessageSquarePlus className="w-3 h-3 text-cyan-400" />
+                <span>Field Debriefs ({customNarrativeSummaries.length})</span>
+              </button>
             </div>
 
             {/* TAB 1: OVERVIEW */}
@@ -743,6 +1003,52 @@ ${mission.objectives
                     <div className="text-slate-300 font-sans mt-0.5">
                       {narrativeBundle.tacticalAAR.nextStrategicAction}
                     </div>
+                  </div>
+                </div>
+
+                {/* Tactical Field Narrative Summaries section */}
+                <div className="p-4 rounded-xl bg-slate-950/80 border border-cyan-900/40 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <MessageSquarePlus className="w-4 h-4 text-cyan-400" />
+                      <div className="text-xs font-mono font-bold text-cyan-300 uppercase tracking-wider">
+                        Tactical Narrative Summaries ({customNarrativeSummaries.length})
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      id="log-summary-overview-btn"
+                      onClick={() => {
+                        sound.playClick();
+                        setIsAddNarrativeModalOpen(true);
+                      }}
+                      className="px-2 py-0.5 rounded bg-cyan-950 border border-cyan-500/40 hover:bg-cyan-900 text-cyan-300 text-[10px] font-mono flex items-center gap-1 transition-all"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>+ Log Entry</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {customNarrativeSummaries.slice(0, 3).map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-3 rounded-lg bg-[#060a12] border border-slate-800/90 text-xs space-y-1 font-mono"
+                      >
+                        <div className="flex items-center justify-between text-[10px] text-slate-400">
+                          <span className="font-bold text-cyan-300">{item.title}</span>
+                          <span>{item.timestamp}</span>
+                        </div>
+                        <p className="text-slate-300 font-sans text-xs leading-relaxed">
+                          {item.content}
+                        </p>
+                        <div className="flex items-center gap-2 text-[9px] text-slate-500">
+                          <span>By: {item.author}</span>
+                          <span>•</span>
+                          <span className="uppercase text-cyan-400">{item.category}</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -929,6 +1235,65 @@ ${mission.objectives
               </div>
             )}
 
+            {/* TAB 6: CUSTOM FIELD NARRATIVE DEBRIEFS */}
+            {activeNarrativeTab === 'field_logs' && (
+              <div className="space-y-4 pt-1 font-mono text-xs">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                  <div className="text-slate-400">
+                    Recorded <span className="text-cyan-400 font-bold">{customNarrativeSummaries.length}</span> tactical field narrative summaries
+                  </div>
+                  <button
+                    type="button"
+                    id="add-narrative-tab-btn"
+                    onClick={() => {
+                      sound.playClick();
+                      setIsAddNarrativeModalOpen(true);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs flex items-center gap-1.5 transition-colors shadow-sm"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Log Narrative Summary</span>
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {customNarrativeSummaries.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-4 rounded-xl bg-slate-950 border border-slate-800 hover:border-cyan-500/40 transition-colors space-y-2 font-mono"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-cyan-950 text-cyan-300 border border-cyan-500/30">
+                            {item.category}
+                          </span>
+                          <span className="text-sm font-bold text-white font-sans">
+                            {item.title}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-500">{item.timestamp}</span>
+                      </div>
+
+                      <p className="text-slate-300 font-sans text-xs leading-relaxed">
+                        {item.content}
+                      </p>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-900 text-[10px] text-slate-500">
+                        <span>Operative: <strong className="text-slate-300">{item.author}</strong></span>
+                        <span className="text-cyan-400/80">HASH: 0x{item.id.replace(/[^a-f0-9]/gi, '').slice(0, 6)}</span>
+                      </div>
+                    </div>
+                  ))}
+
+                  {customNarrativeSummaries.length === 0 && (
+                    <div className="py-8 text-center text-slate-500 text-xs">
+                      No tactical narrative summaries logged yet. Click &quot;+ Log Narrative Summary&quot; to file an entry.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
           </div>
 
         </div>
@@ -949,9 +1314,24 @@ ${mission.objectives
                     Mission Milestones
                   </h2>
                 </div>
-                <span className="text-xs font-mono font-bold text-emerald-400">
-                  {completedCount}/{totalCount} Cleared
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    id="add-milestone-open-modal-btn"
+                    onClick={() => {
+                      sound.playClick();
+                      setIsAddMilestoneModalOpen(true);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-950/80 border border-emerald-500/50 hover:bg-emerald-900 text-emerald-200 hover:text-white text-xs font-mono font-bold flex items-center gap-1 transition-all shadow-sm"
+                    title="Add a new milestone (plays audio ding sound effect)"
+                  >
+                    <Plus className="w-3 h-3 text-emerald-400" />
+                    <span>+ Add Milestone</span>
+                  </button>
+                  <span className="text-xs font-mono font-bold text-emerald-400">
+                    {completedCount}/{totalCount} Cleared
+                  </span>
+                </div>
               </div>
 
               {/* Filter Pills */}
@@ -1164,6 +1544,224 @@ ${mission.objectives
         </div>
 
       </div>
+
+      {/* =========================================================
+          MODAL: ADD NEW MILESTONE TO MISSION DIRECTIVE
+         ========================================================= */}
+      {isAddMilestoneModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg rounded-2xl bg-[#0a0f1d] border border-cyan-500/40 p-6 shadow-2xl shadow-cyan-950/50 space-y-5 font-mono">
+            
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                <h3 className="text-base font-bold text-white font-sans">
+                  Log New Mission Milestone
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddMilestoneModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 font-sans leading-relaxed">
+              Define a new tactical milestone for this directive. Adding it to the log will automatically trigger the dynamic subtle bell &apos;ding&apos; audio cue.
+            </p>
+
+            <form onSubmit={handleAddNewMilestone} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-slate-400 font-bold mb-1">
+                  Milestone Directive Description <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newMilestoneDesc}
+                  onChange={(e) => setNewMilestoneDesc(e.target.value)}
+                  placeholder="e.g., Scan high-frequency transmitter at Mill River substation"
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1">
+                    Target Stamford Zone
+                  </label>
+                  <select
+                    value={newMilestoneZone}
+                    onChange={(e) => setNewMilestoneZone(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400"
+                  >
+                    <option value="Stamford Sector 7">Stamford Sector 7</option>
+                    <option value="Washington Boulevard Transit">Washington Boulevard Transit</option>
+                    <option value="Harbor Point Pier">Harbor Point Pier</option>
+                    <option value="Downtown Station Plaza">Downtown Station Plaza</option>
+                    <option value="Mill River Greenway">Mill River Greenway</option>
+                    <option value="Onegodia Gateway Hub">Onegodia Gateway Hub</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1">
+                    Reward Bounty (Credits)
+                  </label>
+                  <input
+                    type="number"
+                    min="10"
+                    max="500"
+                    step="5"
+                    value={newMilestoneCredits}
+                    onChange={(e) => setNewMilestoneCredits(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/30 flex items-center gap-2 text-cyan-300 text-[11px]">
+                <Bell className="w-4 h-4 text-cyan-400 shrink-0 animate-pulse" />
+                <span>Audio Trigger: Submitting will play the subtle chime feedback</span>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsAddMilestoneModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1.5 transition-colors shadow-lg shadow-emerald-950"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Commit Milestone (Chime 🔔)</span>
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          MODAL: ADD NEW NARRATIVE SUMMARY TO LOG ARCHIVE
+         ========================================================= */}
+      {isAddNarrativeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg rounded-2xl bg-[#0a0f1d] border border-cyan-500/40 p-6 shadow-2xl shadow-cyan-950/50 space-y-5 font-mono">
+            
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <MessageSquarePlus className="w-5 h-5 text-cyan-400" />
+                <h3 className="text-base font-bold text-white font-sans">
+                  Log Tactical Narrative Summary
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddNarrativeModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 font-sans leading-relaxed">
+              File a situational debrief or operative observation into the directive archive. Committing the summary will automatically trigger the dynamic subtle bell &apos;ding&apos; sound effect.
+            </p>
+
+            <form onSubmit={handleAddNewNarrativeSummary} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-slate-400 font-bold mb-1">
+                  Summary Headline / Title <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newNarrativeTitle}
+                  onChange={(e) => setNewNarrativeTitle(e.target.value)}
+                  placeholder="e.g., Sub-aqueduct Quantum Conduit Resonance"
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1">
+                    Operative Callsign
+                  </label>
+                  <input
+                    type="text"
+                    value={newNarrativeAuthor}
+                    onChange={(e) => setNewNarrativeAuthor(e.target.value)}
+                    placeholder="Field Operative"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1">
+                    Category
+                  </label>
+                  <select
+                    value={newNarrativeCategory}
+                    onChange={(e) => setNewNarrativeCategory(e.target.value as any)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400"
+                  >
+                    <option value="debrief">Field Debrief</option>
+                    <option value="intel">Tactical Intel</option>
+                    <option value="chronicle">Chronicle Lore</option>
+                    <option value="transmission">Radio Transmission</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-bold mb-1">
+                  Narrative Prose / Observation Content <span className="text-rose-400">*</span>
+                </label>
+                <textarea
+                  required
+                  rows={4}
+                  value={newNarrativeContent}
+                  onChange={(e) => setNewNarrativeContent(e.target.value)}
+                  placeholder="Record your field observations, harmonic resonance readings, or directive outcome analysis..."
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 font-sans leading-relaxed"
+                />
+              </div>
+
+              <div className="p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/30 flex items-center gap-2 text-cyan-300 text-[11px]">
+                <Bell className="w-4 h-4 text-cyan-400 shrink-0 animate-pulse" />
+                <span>Audio Trigger: Submitting will play the subtle chime feedback</span>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsAddNarrativeModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold flex items-center gap-1.5 transition-colors shadow-lg shadow-cyan-950"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>Archive Narrative Entry (Chime 🔔)</span>
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );

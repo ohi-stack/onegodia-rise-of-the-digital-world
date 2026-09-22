@@ -1,0 +1,122 @@
+{
+  "entities": {
+    "userProfile": {
+      "title": "User Profile",
+      "description": "Authenticated operative identity and tactical credentials",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Auth UID matching document ID" },
+        "displayName": { "type": "string", "description": "Operative callsign or name" },
+        "email": { "type": "string", "format": "email", "description": "Operative email" },
+        "rank": { "type": "string", "description": "Operative faction rank" },
+        "credits": { "type": "number", "description": "Tactical credits balance" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "description": "Last updated timestamp" }
+      },
+      "required": ["uid", "displayName"]
+    },
+    "playerProgress": {
+      "title": "Player Progress",
+      "description": "Tactical game progress and persistent operative state",
+      "type": "object",
+      "properties": {
+        "playerId": { "type": "string", "description": "User UID who owns this progress record" },
+        "credits": { "type": "number", "description": "Tactical credits" },
+        "odcSimulatedBalance": { "type": "number", "description": "Simulated ODC token balance" },
+        "hasVehicleUnlocked": { "type": "boolean", "description": "Vehicle unlock status" },
+        "activeMissionId": { "type": "string", "description": "Active mission ID" },
+        "missionsCompleted": { "type": "array", "description": "IDs of completed missions" },
+        "collectedFragments": { "type": "array", "description": "IDs of collected fragments" },
+        "inventory": { "type": "string", "description": "Serialized inventory data" },
+        "lastWarpLocation": { "type": "string", "description": "Last known warp zone" },
+        "updatedAt": { "type": "string", "description": "Last synchronization timestamp" }
+      },
+      "required": ["playerId", "credits"]
+    },
+    "explorationDirective": {
+      "title": "Exploration Directive",
+      "description": "Tactical sector exploration directive and objective data",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique directive identifier" },
+        "title": { "type": "string", "description": "Title of directive" },
+        "targetNodeId": { "type": "string", "description": "Target game node ID" },
+        "targetZone": { "type": "string", "description": "Target zone name" },
+        "rewardCredits": { "type": "number", "description": "Credit reward amount" },
+        "status": { "type": "string", "description": "Directive status" },
+        "assignedOperativeUid": { "type": "string", "description": "Operative UID assigned" },
+        "updatedAt": { "type": "string", "description": "Last updated timestamp" }
+      },
+      "required": ["id", "title", "targetNodeId"]
+    },
+    "adminRecord": {
+      "title": "Admin Record",
+      "description": "Registered system administrator credential and permissions",
+      "type": "object",
+      "properties": {
+        "adminId": { "type": "string", "description": "Admin UID or identifier" },
+        "email": { "type": "string", "description": "Admin email address" },
+        "role": { "type": "string", "description": "Admin authorization tier (superadmin, game_master, auditor)" },
+        "createdAt": { "type": "string", "description": "Registration timestamp" }
+      },
+      "required": ["adminId", "email", "role"]
+    },
+    "systemBroadcast": {
+      "title": "System Broadcast",
+      "description": "Global tactical announcement and emergency broadcast alert",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Broadcast unique ID" },
+        "title": { "type": "string", "description": "Broadcast alert headline" },
+        "message": { "type": "string", "description": "Broadcast briefing body" },
+        "severity": { "type": "string", "enum": ["info", "warning", "critical"], "description": "Alert severity level" },
+        "active": { "type": "boolean", "description": "Whether broadcast is currently displaying" },
+        "authorEmail": { "type": "string", "description": "Publishing administrator email" },
+        "createdAt": { "type": "string", "description": "Publishing timestamp" }
+      },
+      "required": ["id", "title", "message", "severity", "active"]
+    },
+    "systemConfig": {
+      "title": "System Configuration",
+      "description": "Global game engine and simulated economy runtime variables",
+      "type": "object",
+      "properties": {
+        "configId": { "type": "string", "description": "Unique config document ID (e.g. gameplay)" },
+        "creditMultiplier": { "type": "number", "description": "Global credit reward scaling multiplier" },
+        "odcMintRate": { "type": "number", "description": "Simulated ODC token minting rate" },
+        "relicShardDensity": { "type": "string", "description": "Relic shard map spawn density" },
+        "pvpEngagementStatus": { "type": "string", "description": "Sector combat engagement state" },
+        "maintenanceMode": { "type": "boolean", "description": "Global server maintenance lock status" },
+        "updatedAt": { "type": "string", "description": "Last modified timestamp" },
+        "updatedBy": { "type": "string", "description": "Modifier administrator email" }
+      },
+      "required": ["configId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "userProfile",
+      "description": "User profile collection isolated by user ID"
+    },
+    "/player_progress/{userId}": {
+      "schema": "playerProgress",
+      "description": "Operative progress state keyed by user ID"
+    },
+    "/exploration_directives/{directiveId}": {
+      "schema": "explorationDirective",
+      "description": "Sector exploration directives accessible to operatives"
+    },
+    "/admins/{adminId}": {
+      "schema": "adminRecord",
+      "description": "Administrative clearance registry"
+    },
+    "/system_broadcasts/{broadcastId}": {
+      "schema": "systemBroadcast",
+      "description": "Global tactical alerts and emergency system transmissions"
+    },
+    "/system_config/{configId}": {
+      "schema": "systemConfig",
+      "description": "Global engine parameters and simulated economy variables"
+    }
+  }
+}
