@@ -35,12 +35,46 @@ A status may only move forward when the corresponding evidence exists.
 - acceptance criteria are satisfied;
 - the relevant Unreal project/build loads successfully;
 - required gameplay/system behavior has been tested;
-- evidence is recorded and traceable to source control.
+- evidence is recorded and traceable to source control;
+- independent QA has reviewed the applicable evidence or the record explicitly identifies why independent QA is not yet available.
 
 `Verified → Playable`
 - the feature can be exercised by a player in the designated Unreal build;
 - the required interaction is repeatable;
-- blocking defects do not invalidate the public claim.
+- blocking defects do not invalidate the public claim;
+- QA evidence identifies the build/ref and tested player-facing behavior.
+
+## Independent QA gate
+
+The **AI-QA-Test-Agent / human QA function** operates independently from implementation agents.
+
+Implementation agents build features and may report implementation details, but they do not self-promote their own work into Verified or Playable status.
+
+QA should record, as applicable:
+
+- build/ref/commit identity;
+- environment and Unreal version;
+- exact runtime test procedure;
+- expected result;
+- actual result;
+- PASS / FAIL / BLOCKED / NOT TESTED decision;
+- defect references;
+- regression results;
+- screenshots/video/logs as supporting evidence.
+
+A developer or AI agent reporting “fixed” or “complete” moves work only to an implementation-ready state until the applicable behavior is independently retested.
+
+## Defect severity
+
+For release-gate purposes:
+
+- **S0 — Blocker:** the build cannot reasonably be tested or a critical prerequisite is unusable.
+- **S1 — Critical:** the primary gameplay path crashes, breaks, or cannot complete.
+- **S2 — Major:** important behavior is incorrect but testing can continue.
+- **S3 — Minor:** limited gameplay impact or localized usability defect.
+- **S4 — Cosmetic:** presentation issue with no material gameplay effect.
+
+No public release claim should ignore an unresolved S0 blocker or an S1 defect that invalidates the claimed player-facing behavior.
 
 ## Evidence hierarchy
 
@@ -74,6 +108,8 @@ For the Stamford vertical slice, the acceptance proof should demonstrate a coher
 
 ## Web-node rule
 
-`game.onegodian.com` may present simulations, interface prototypes, development documentation, roadmap material, and build evidence, but each must be labeled according to what it actually represents.
+`game.onegodian.com` may present simulations, interface prototypes, development documentation, roadmap material, QA methodology, and build evidence, but each must be labeled according to what it actually represents.
+
+The public QA page explains the verification standard. It does not itself convert any untested feature into Verified or Playable status.
 
 When verification is missing or uncertain, use **Planned** or **Building** rather than inferring **Verified** or **Playable**.
