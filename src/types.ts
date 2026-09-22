@@ -9,6 +9,7 @@ export type NavigationTab =
   | 'mvp-v1'
   | 'play'
   | 'development-status'
+  | 'producer'
   | 'prototype'
   | 'gameplay'
   | 'gameplay-grid'
@@ -118,122 +119,90 @@ export interface InventoryItem {
 
 export interface PlayerProgress {
   credits: number;
-  odcSimulatedBalance: number;
-  missionsCompleted: string[];
-  collectedFragments: string[];
+  odcBalance: number;
+  fragments: number;
+  playerState: PlayerState;
+  currentCoordinates: { x: number; y: number };
+  currentZone: string;
   inventory: InventoryItem[];
-  hasVehicleUnlocked: boolean;
-  activeMissionId: string | null;
-  lastWarpLocation: string;
+  achievements: string[];
+  unlockedZones: string[];
+  equippedVehicle?: string;
+  playerName?: string;
+  membershipTier?: string;
+  lastSavedAt?: number;
 }
 
-export interface GameEntity {
+export interface TacticalMarker {
   id: string;
-  name: string;
-  type: 'player' | 'npc' | 'vehicle' | 'node' | 'waypoint' | 'hub';
+  type: 'player' | 'objective' | 'poi' | 'vehicle' | 'future';
+  label: string;
   x: number;
   y: number;
-  radius: number;
-  color: string;
-  interactionPrompt?: string;
-  dialogue?: string[];
+  isActive: boolean;
+  status?: SystemStatus;
+}
+
+export interface WorldZone {
+  id: string;
+  name: string;
+  description: string;
+  status: SystemStatus;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface ComplianceItem {
+  feature: string;
+  currentStatus: SystemStatus;
+  notice: string;
+}
+
+export interface PlayerControlBinding {
+  action: string;
+  keyboard: string;
+  gamepad?: string;
+  mobile?: string;
+}
+
+export interface MediaItem {
+  id: string;
+  title: string;
+  type: 'image' | 'video' | 'concept' | 'screenshot';
+  status: SystemStatus;
+  url?: string;
+  description: string;
 }
 
 export interface DeveloperTrack {
   id: string;
   title: string;
-  leadRole: string;
-  summary: string;
-  items: string[];
-  unrealBlueprintClasses?: {
-    className: string;
-    description: string;
-    targetComponent: string;
-  }[];
-}
-
-export interface AIAgentRole {
-  name: string;
-  responsibility: string;
-  deliverables: string[];
-  focusTrack: string;
-}
-
-export interface MissionHistoryEntry {
-  id: string;
-  missionId: string;
-  code: string;
-  title: string;
-  type: string;
-  completedAt: number;
-  startedAt?: number;
-  durationSeconds: number;
-  objectivesCompletedCount: number;
-  totalObjectivesCount: number;
-  rewardCredits: number;
-  rewardItem: string;
-  rewardItemRarity: string;
-  verificationHash: string;
-  stripePaymentReceipt?: {
-    sessionId: string;
-    passName: string;
-    amountTotal: number;
-    currency: string;
-    paidAt: number;
-    status: string;
-    isSimulated?: boolean;
-  };
-}
-
-export interface StripePass {
-  id: string;
-  name: string;
-  price: string;
-  priceCents: number;
-  badge: string;
   description: string;
-  perks: string[];
-  highlighted?: boolean;
+  status: SystemStatus;
+  tasks: string[];
 }
 
-export interface DocFileSpec {
-  filename: string;
+export interface RoadmapPhase {
+  id: string;
+  phase: string;
   title: string;
+  status: SystemStatus;
+  target: string;
+  goals: string[];
+}
+
+export interface AssetCatalogItem {
+  id: string;
+  name: string;
   category: string;
-  content: string;
-}
-
-export interface SectorExplorationObjective {
-  id: string;
-  title: string;
-  brief: string;
-  targetAction: string;
-  rewardCredits: number;
-  rewardItem?: string;
-  threatLevel: string;
-  status: 'available' | 'active' | 'completed';
-}
-
-export interface MapLandmark {
-  id: string;
-  code: string;
-  name: string;
-  district: string;
-  coords: { x: number; y: number };
-  elevation: string;
-  type: 'Safe Sanctuary' | 'Transit Hub' | 'Digital Node' | 'Relic Quarry' | 'Sentinel Hive' | 'Sub-Grid Aqueduct' | 'Perimeter Gate' | 'Telecom Spire' | 'Quantum Vault' | 'Waterfront Terminal';
-  threatLevel: 'Safe Haven' | 'Low Risk' | 'Moderate' | 'Hazardous' | 'Critical Lockdown';
-  status: string;
+  subcategory?: string;
+  basePriceCredits?: number;
+  realMoneyPriceUsd?: number;
+  status: SystemStatus | 'Operational';
   description: string;
-  strategicIntel: string;
-  fastTravelAvailable: boolean;
-  color: string;
-  iconName: string;
-  discovered: boolean;
-  associatedMissions?: string[];
-  lootAvailable?: boolean;
-  isGameNode?: boolean;
-  nodeFrequency?: string;
-  signalResonance?: number;
-  explorationObjective?: SectorExplorationObjective;
+  transferable?: boolean;
+  blockchainEnabled?: boolean;
+  productKey?: string;
 }
