@@ -28,6 +28,7 @@ import {
   Info,
   Shield,
   Zap,
+  Target,
 } from 'lucide-react';
 import {
   STAMFORD_POIS,
@@ -44,6 +45,7 @@ interface StamfordGoogleMapProps {
   progress?: PlayerProgress;
   setProgress?: React.Dispatch<React.SetStateAction<PlayerProgress>>;
   onWarpLocation?: (locationName: string, coords: { lat: number; lng: number }) => void;
+  onInspectNode?: (poi: StamfordPOI) => void;
 }
 
 type MapTheme = 'tactical-dark' | 'standard' | 'hybrid';
@@ -52,6 +54,7 @@ export const StamfordGoogleMap: React.FC<StamfordGoogleMapProps> = ({
   progress,
   setProgress,
   onWarpLocation,
+  onInspectNode,
 }) => {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
@@ -408,24 +411,39 @@ export const StamfordGoogleMap: React.FC<StamfordGoogleMapProps> = ({
                       <p className="text-[11px] text-slate-600 mt-1 leading-snug">
                         {infoWindowPoi.description}
                       </p>
-                      <div className="mt-2 pt-1 border-t border-slate-200 flex items-center justify-between text-[10px]">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDestinationId(infoWindowPoi.id);
-                            sound.playClick();
-                          }}
-                          className="text-cyan-700 hover:text-cyan-900 font-semibold underline"
-                        >
-                          Route here
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleFastTravel(infoWindowPoi)}
-                          className="px-1.5 py-0.5 rounded bg-cyan-700 hover:bg-cyan-800 text-white font-medium"
-                        >
-                          Warp
-                        </button>
+                      <div className="mt-2 pt-1 border-t border-slate-200 flex items-center justify-between text-[10px] gap-2">
+                        {onInspectNode && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              sound.playClick();
+                              onInspectNode(infoWindowPoi);
+                            }}
+                            className="px-1.5 py-0.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center gap-1"
+                          >
+                            <Target className="w-2.5 h-2.5" />
+                            <span>Inspect Node</span>
+                          </button>
+                        )}
+                        <div className="flex items-center gap-1.5 ml-auto">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDestinationId(infoWindowPoi.id);
+                              sound.playClick();
+                            }}
+                            className="text-cyan-700 hover:text-cyan-900 font-semibold underline"
+                          >
+                            Route
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleFastTravel(infoWindowPoi)}
+                            className="px-1.5 py-0.5 rounded bg-cyan-700 hover:bg-cyan-800 text-white font-medium"
+                          >
+                            Warp
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </InfoWindow>
@@ -628,26 +646,42 @@ export const StamfordGoogleMap: React.FC<StamfordGoogleMapProps> = ({
               </div>
 
               {/* Action Buttons */}
-              <div className="pt-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleFastTravel(activePoi)}
-                  className="flex-1 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs flex items-center justify-center gap-1 transition-colors"
-                >
-                  <Navigation className="w-3 h-3" />
-                  Fast Travel / Warp
-                </button>
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                    `${activePoi.name}, ${activePoi.address}`
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-1.5 rounded-lg border border-[#222d42] bg-[#0c121e] text-slate-300 hover:text-white flex items-center justify-center"
-                  title="View on Google Maps"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                </a>
+              <div className="pt-2 space-y-2">
+                {onInspectNode && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      onInspectNode(activePoi);
+                    }}
+                    className="w-full py-2 rounded-lg bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-blue-600/30 font-mono uppercase"
+                  >
+                    <Target className="w-3.5 h-3.5" />
+                    <span>Inspect Game Node & Objectives</span>
+                  </button>
+                )}
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleFastTravel(activePoi)}
+                    className="flex-1 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs flex items-center justify-center gap-1 transition-colors"
+                  >
+                    <Navigation className="w-3 h-3" />
+                    Fast Travel / Warp
+                  </button>
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                      `${activePoi.name}, ${activePoi.address}`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1.5 rounded-lg border border-[#222d42] bg-[#0c121e] text-slate-300 hover:text-white flex items-center justify-center"
+                    title="View on Google Maps"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                </div>
               </div>
             </div>
           ) : (

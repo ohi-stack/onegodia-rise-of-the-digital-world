@@ -202,6 +202,17 @@ export interface DocFileSpec {
   content: string;
 }
 
+export interface SectorExplorationObjective {
+  id: string;
+  title: string;
+  brief: string;
+  targetAction: string;
+  rewardCredits: number;
+  rewardItem?: string;
+  threatLevel: string;
+  status: 'available' | 'active' | 'completed';
+}
+
 export interface MapLandmark {
   id: string;
   code: string;
@@ -209,7 +220,7 @@ export interface MapLandmark {
   district: string;
   coords: { x: number; y: number };
   elevation: string;
-  type: 'Safe Sanctuary' | 'Transit Hub' | 'Digital Node' | 'Relic Quarry' | 'Sentinel Hive' | 'Sub-Grid Aqueduct' | 'Perimeter Gate' | 'Telecom Spire';
+  type: 'Safe Sanctuary' | 'Transit Hub' | 'Digital Node' | 'Relic Quarry' | 'Sentinel Hive' | 'Sub-Grid Aqueduct' | 'Perimeter Gate' | 'Telecom Spire' | 'Quantum Vault' | 'Waterfront Terminal';
   threatLevel: 'Safe Haven' | 'Low Risk' | 'Moderate' | 'Hazardous' | 'Critical Lockdown';
   status: string;
   description: string;
@@ -220,4 +231,8 @@ export interface MapLandmark {
   discovered: boolean;
   associatedMissions?: string[];
   lootAvailable?: boolean;
+  isGameNode?: boolean;
+  nodeFrequency?: string;
+  signalResonance?: number;
+  explorationObjective?: SectorExplorationObjective;
 }

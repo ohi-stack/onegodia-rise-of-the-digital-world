@@ -26,11 +26,13 @@ import {
   CheckCircle2,
   AlertTriangle,
   Flame,
-  Info
+  Info,
+  Target
 } from 'lucide-react';
 import { PlayerProgress, Mission, NavigationTab, MapLandmark } from '../types';
 import { sound } from '../services/audioService';
 import { SECTOR_7_LANDMARKS, SECTOR_7_REGIONS } from '../data/mapData';
+import { StamfordPOI } from '../data/stamfordLocations';
 import { 
   SentinelDrone, 
   INITIAL_SENTINEL_DRONES, 
@@ -39,6 +41,7 @@ import {
   checkPointInVisionCone 
 } from '../components/DronePatrol';
 import { StamfordGoogleMap } from '../components/maps/StamfordGoogleMap';
+import { NodeDetailModal } from '../components/maps/NodeDetailModal';
 
 interface MapViewProps {
   progress: PlayerProgress;
@@ -49,7 +52,7 @@ interface MapViewProps {
 }
 
 type MapMode = 'stamford-gis' | 'sector7-gameplay';
-type MapLayer = 'all' | 'missions' | 'fast-travel' | 'sentinels' | 'relics' | 'districts';
+type MapLayer = 'all' | 'nodes' | 'missions' | 'fast-travel' | 'sentinels' | 'relics' | 'districts';
 type MapInteractionMode = 'inspect' | 'warp' | 'waypoint';
 
 export const MapView: React.FC<MapViewProps> = ({
@@ -80,6 +83,116 @@ export const MapView: React.FC<MapViewProps> = ({
   const [showVisionCones, setShowVisionCones] = useState<boolean>(true);
   const [showTerrainGrid, setShowTerrainGrid] = useState<boolean>(true);
   const [warpToast, setWarpToast] = useState<string | null>(null);
+
+  // Interactive Node Detail Modal State
+  const [selectedNodeForModal, setSelectedNodeForModal] = useState<MapLandmark | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [activeExplorationNodeId, setActiveExplorationNodeId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('onegodia_active_exploration_node');
+    } catch {
+      return null;
+    }
+  });
+
+  const handleOpenNodeModal = (node: MapLandmark) => {
+    sound.playClick();
+    setSelectedLandmark(node);
+    setSelectedNodeForModal(node);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseNodeModal = () => {
+    setIsModalOpen(false);
+  };
+
+  const handleInitiateExploration = (node: MapLandmark) => {
+    setActiveExplorationNodeId(node.id);
+    try {
+      localStorage.setItem('onegodia_active_exploration_node', node.id);
+    } catch {
+      // ignore
+    }
+
+    // Direct GPS vector beam straight to this node
+    setCustomWaypoint({
+      x: node.coords.x,
+      y: node.coords.y,
+      label: `Directive: ${node.name}`
+    });
+
+    // Reward initial exploration recon credits and update last warp/operative location
+    setProgress(prev => ({
+      ...prev,
+      credits: prev.credits + 25,
+      lastWarpLocation: node.name
+    }));
+
+    // If setMission provided, dynamically update current objective target
+    if (setMission) {
+      setMission(prev => ({
+        ...prev,
+        objectives: prev.objectives.map((obj, idx) => {
+          if (idx === prev.currentObjectiveIndex) {
+            return {
+              ...obj,
+              targetCoordinates: node.coords,
+              targetZone: node.name,
+              isPinnedToHUD: true
+            };
+          }
+          return obj;
+        })
+      }));
+    }
+
+    sound.playReward();
+    setWarpToast(`🎯 Sector Exploration Directive Initialized: ${node.explorationObjective?.title || node.name}! Coordinates locked at [${node.coords.x}, ${node.coords.y}].`);
+    setTimeout(() => setWarpToast(null), 5000);
+  };
+
+  const handleOpenPoiAsNode = (poi: StamfordPOI) => {
+    const matched = SECTOR_7_LANDMARKS.find(
+      (l) => l.name.toLowerCase().includes(poi.shortName.toLowerCase()) ||
+             l.description.toLowerCase().includes(poi.shortName.toLowerCase()) ||
+             l.id.includes(poi.id.replace('poi-', ''))
+    );
+    if (matched) {
+      handleOpenNodeModal(matched);
+    } else {
+      const dynamicNode: MapLandmark = {
+        id: `node-${poi.id}`,
+        code: `CORR-0${poi.corridorOrder || 1}`,
+        name: poi.name,
+        district: 'Stamford Urban GIS Corridor',
+        coords: { x: Math.round(200 + (poi.corridorOrder || 1) * 140), y: 360 },
+        elevation: '+15m (Street Tier)',
+        type: poi.category === 'spawn' ? 'Safe Sanctuary' : poi.category === 'transit' ? 'Transit Hub' : 'Digital Node',
+        threatLevel: poi.category === 'spawn' ? 'Safe Haven' : 'Low Risk',
+        status: 'Corridor Node Active',
+        description: poi.description,
+        strategicIntel: poi.urbanFeatures.join(' • '),
+        fastTravelAvailable: true,
+        color: poi.color,
+        iconName: poi.iconType === 'hospital' ? 'Shield' : poi.iconType === 'car' ? 'Car' : 'Radio',
+        discovered: true,
+        isGameNode: true,
+        nodeFrequency: `${(120 + (poi.corridorOrder || 1) * 32).toFixed(1)} MHz`,
+        signalResonance: 96,
+        explorationObjective: {
+          id: `exp-${poi.id}`,
+          title: `Corridor Recon: ${poi.shortName}`,
+          brief: `Perform an urban reconnaissance survey of ${poi.name}. Check corridor sightlines and sync telemetry data.`,
+          targetAction: 'Urban Corridor Telemetry Run',
+          rewardCredits: 150,
+          rewardItem: 'Corridor Keycard',
+          threatLevel: poi.category === 'spawn' ? 'Safe Haven' : 'Low Risk',
+          status: 'available'
+        }
+      };
+      handleOpenNodeModal(dynamicNode);
+    }
+  };
 
   // Sentinel Drones Live Simulation on Map
   const [drones, setDrones] = useState<SentinelDroneData[]>(() => INITIAL_SENTINEL_DRONES);
@@ -255,6 +368,7 @@ export const MapView: React.FC<MapViewProps> = ({
             setWarpToast(`Player fast-travelled to ${loc}`);
             setTimeout(() => setWarpToast(null), 4000);
           }}
+          onInspectNode={handleOpenPoiAsNode}
         />
       ) : (
         <>
@@ -334,6 +448,19 @@ export const MapView: React.FC<MapViewProps> = ({
             }`}
           >
             All POIs
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { sound.playClick(); setActiveLayer('nodes'); }}
+            className={`px-2.5 py-1 rounded text-[11px] font-medium border transition-colors flex items-center gap-1 ${
+              activeLayer === 'nodes'
+                ? 'bg-cyan-950/80 border-cyan-400 text-cyan-200 font-bold'
+                : 'bg-[#11131a] border-[#1e2230] text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Target className="w-3 h-3 text-cyan-400" />
+            <span>Game Nodes ({SECTOR_7_LANDMARKS.filter(l => l.isGameNode).length})</span>
           </button>
 
           <button
@@ -599,8 +726,10 @@ export const MapView: React.FC<MapViewProps> = ({
               const isSelected = selectedLandmark?.id === landmark.id;
               const isObjective = (mission.status === 'Active' && landmark.id === 'sec-node-1') ||
                                   (mission.status === 'Available' && landmark.id === 'sec-hub');
+              const isExplorationActive = activeExplorationNodeId === landmark.id;
 
               // Filter check
+              if (activeLayer === 'nodes' && !landmark.isGameNode) return null;
               if (activeLayer === 'missions' && !isObjective) return null;
               if (activeLayer === 'fast-travel' && !landmark.fastTravelAvailable) return null;
               if (activeLayer === 'relics' && !landmark.lootAvailable) return null;
@@ -614,20 +743,34 @@ export const MapView: React.FC<MapViewProps> = ({
                   id={`landmark-node-${landmark.id}`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    sound.playClick();
-                    setSelectedLandmark(landmark);
+                    handleOpenNodeModal(landmark);
                     if (interactionMode === 'warp' && landmark.fastTravelAvailable) {
                       handleWarpToLandmark(landmark);
                     }
                   }}
-                  className="group absolute -translate-x-1/2 -translate-y-1/2 focus:outline-none z-30 transition-transform hover:scale-125"
+                  className="group absolute -translate-x-1/2 -translate-y-1/2 focus:outline-none z-30 transition-transform hover:scale-125 cursor-pointer"
                   style={{
                     left: `${percentX}%`,
                     top: `${percentY}%`,
                   }}
+                  title={`Inspect ${landmark.name}`}
                 >
+                  {/* Glowing beacon ping for active sector exploration directive */}
+                  {isExplorationActive && (
+                    <div 
+                      className="absolute -inset-3.5 rounded-full border-2 border-emerald-400 bg-emerald-500/30 animate-ping pointer-events-none"
+                    />
+                  )}
+
+                  {/* Rotating dashed ring for game nodes */}
+                  {landmark.isGameNode && (
+                    <div 
+                      className="absolute -inset-1.5 rounded-full border border-dashed border-cyan-400/50 pointer-events-none group-hover:border-cyan-300"
+                    />
+                  )}
+
                   {/* Glowing halo beacon if selected or active objective */}
-                  {(isSelected || isObjective) && (
+                  {(isSelected || isObjective) && !isExplorationActive && (
                     <div 
                       className="absolute -inset-2.5 rounded-full border border-cyan-400 bg-cyan-500/20 animate-ping pointer-events-none"
                       style={{ borderColor: landmark.color }}
@@ -637,13 +780,15 @@ export const MapView: React.FC<MapViewProps> = ({
                   {/* Landmark Node Badge */}
                   <div
                     className={`w-7 h-7 rounded-lg border flex items-center justify-center shadow-lg transition-all ${
-                      isSelected
+                      isExplorationActive
+                        ? 'bg-emerald-950 border-emerald-400 text-emerald-300 shadow-emerald-500/40 ring-2 ring-emerald-400/60 scale-110'
+                        : isSelected
                         ? 'bg-slate-900 border-white text-white shadow-white/40 scale-110'
                         : 'bg-[#0b0e14]/90 border-[#1e2230] hover:border-slate-300'
                     }`}
                     style={{
-                      borderColor: isSelected ? '#ffffff' : landmark.color,
-                      color: landmark.color
+                      borderColor: isExplorationActive ? '#34d399' : isSelected ? '#ffffff' : landmark.color,
+                      color: isExplorationActive ? '#34d399' : landmark.color
                     }}
                   >
                     {renderLandmarkIcon(landmark.iconName)}
@@ -651,14 +796,19 @@ export const MapView: React.FC<MapViewProps> = ({
 
                   {/* Landmark Label Tooltip */}
                   <div className={`absolute top-8 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded text-[10px] font-mono whitespace-nowrap border pointer-events-none transition-all z-40 flex items-center gap-1 shadow-xl ${
-                    isSelected
+                    isSelected || isExplorationActive
                       ? 'opacity-100 bg-slate-900 border-white text-white font-bold'
                       : 'opacity-0 group-hover:opacity-100 bg-[#0c0e14]/95 border-[#1e2230] text-slate-200'
                   }`}>
                     <span>{landmark.name}</span>
-                    {isObjective && (
+                    {isExplorationActive && (
+                      <span className="text-[8px] bg-emerald-600 text-white px-1 rounded font-bold uppercase">
+                        Active Directive
+                      </span>
+                    )}
+                    {isObjective && !isExplorationActive && (
                       <span className="text-[8px] bg-blue-600 text-white px-1 rounded font-bold uppercase">
-                        Active Obj
+                        Mission Obj
                       </span>
                     )}
                   </div>
@@ -844,16 +994,69 @@ export const MapView: React.FC<MapViewProps> = ({
               </div>
             </div>
 
-            {/* Action Buttons: Fast Travel Warp & Set Waypoint */}
+            {/* Action Buttons: Inspect Node, Fast Travel Warp & Set Waypoint */}
             <div className="space-y-2 pt-2 border-t border-[#1e2230]">
+              <button
+                type="button"
+                id="open-node-modal-sidebar-btn"
+                onClick={() => handleOpenNodeModal(selectedLandmark)}
+                className="w-full py-2.5 rounded-lg bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-cyan-600/30 text-xs font-mono uppercase"
+              >
+                <Target className="w-4 h-4 text-cyan-300" />
+                <span>Inspect Node & Objectives</span>
+              </button>
+
+              {/* Exploration Directive Mini-Card if available */}
+              {selectedLandmark.explorationObjective && (
+                <div className="p-2.5 rounded-lg bg-[#0d1422] border border-cyan-500/40 space-y-2 text-xs">
+                  <div className="flex items-center justify-between text-[10px] text-cyan-400 font-bold uppercase">
+                    <span className="flex items-center gap-1">
+                      <Target className="w-3 h-3 text-cyan-400" />
+                      <span>Exploration Directive:</span>
+                    </span>
+                    <span className="text-amber-400 font-bold">+{selectedLandmark.explorationObjective.rewardCredits} CR</span>
+                  </div>
+
+                  <div className="text-white font-semibold text-xs truncate">
+                    {selectedLandmark.explorationObjective.title}
+                  </div>
+
+                  <p className="text-[11px] text-slate-300 font-sans line-clamp-2">
+                    {selectedLandmark.explorationObjective.brief}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => handleInitiateExploration(selectedLandmark)}
+                    className={`w-full py-1.5 rounded text-[11px] font-bold uppercase transition-all flex items-center justify-center gap-1.5 ${
+                      activeExplorationNodeId === selectedLandmark.id
+                        ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/60 shadow-md shadow-emerald-950/50'
+                        : 'bg-cyan-600 hover:bg-cyan-500 text-slate-950 shadow-md shadow-cyan-600/30'
+                    }`}
+                  >
+                    {activeExplorationNodeId === selectedLandmark.id ? (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Directive Active & Locked</span>
+                      </>
+                    ) : (
+                      <>
+                        <Target className="w-3.5 h-3.5" />
+                        <span>Initiate Sector Objective</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+
               {selectedLandmark.fastTravelAvailable ? (
                 <button
                   type="button"
                   id="fast-travel-btn"
                   onClick={() => handleWarpToLandmark(selectedLandmark)}
-                  className="w-full py-2.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-cyan-600/30"
+                  className="w-full py-2 rounded-lg bg-[#11131a] hover:bg-[#191d29] text-cyan-300 border border-cyan-500/40 font-bold flex items-center justify-center gap-2 transition-colors text-xs"
                 >
-                  <Navigation className="w-4 h-4" />
+                  <Navigation className="w-3.5 h-3.5" />
                   <span>Fast Travel Warp ({selectedLandmark.name})</span>
                 </button>
               ) : (
@@ -875,7 +1078,7 @@ export const MapView: React.FC<MapViewProps> = ({
                   setWarpToast(`Navigation directive pinned to ${selectedLandmark.name}`);
                   setTimeout(() => setWarpToast(null), 3000);
                 }}
-                className="w-full py-2 rounded-lg bg-[#11131a] hover:bg-[#181c26] text-slate-200 border border-[#1e2230] font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                className="w-full py-2 rounded-lg bg-[#11131a] hover:bg-[#181c26] text-slate-200 border border-[#1e2230] font-semibold flex items-center justify-center gap-1.5 transition-colors text-xs"
               >
                 <MapPin className="w-3.5 h-3.5 text-amber-400" />
                 <span>Pin Target GPS Waypoint</span>
@@ -888,37 +1091,50 @@ export const MapView: React.FC<MapViewProps> = ({
           <div className="p-3.5 rounded-xl bg-[#0c0e14] border border-[#1e2230] space-y-2">
             <div className="flex items-center justify-between text-slate-300">
               <span className="font-bold text-xs text-cyan-400 uppercase">Sector 7 Directory</span>
-              <span className="text-[10px] text-slate-500 font-mono">8 Key Landmarks</span>
+              <span className="text-[10px] text-slate-500 font-mono">{SECTOR_7_LANDMARKS.length} Landmarks & Game Nodes</span>
             </div>
 
             <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
               {SECTOR_7_LANDMARKS.map((lm) => {
                 const isCurrent = selectedLandmark?.id === lm.id;
+                const isExpActive = activeExplorationNodeId === lm.id;
                 return (
-                  <button
+                  <div
                     key={lm.id}
-                    type="button"
-                    onClick={() => {
-                      sound.playClick();
-                      setSelectedLandmark(lm);
-                    }}
-                    className={`w-full text-left p-2 rounded-lg border text-xs flex items-center justify-between transition-all ${
+                    className={`w-full p-2 rounded-lg border text-xs flex items-center justify-between transition-all ${
                       isCurrent
                         ? 'bg-slate-900 border-cyan-500 text-white font-bold'
                         : 'bg-[#11131a] border-[#1e2230] text-slate-400 hover:text-slate-200 hover:bg-[#161922]'
                     }`}
                   >
-                    <div className="flex items-center gap-2 truncate">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sound.playClick();
+                        setSelectedLandmark(lm);
+                      }}
+                      className="flex items-center gap-2 truncate flex-1 text-left"
+                    >
                       <div 
                         className="w-2 h-2 rounded-full shrink-0" 
                         style={{ backgroundColor: lm.color }}
                       />
                       <span className="truncate">{lm.name}</span>
-                    </div>
-                    <span className="text-[10px] font-mono text-slate-500 shrink-0 ml-2">
-                      {lm.code}
-                    </span>
-                  </button>
+                      {isExpActive && (
+                        <span className="text-[8px] px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 uppercase font-mono">
+                          ACTIVE
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenNodeModal(lm)}
+                      className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-cyan-300 transition-colors ml-1"
+                      title={`Inspect ${lm.name}`}
+                    >
+                      <Target className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -929,6 +1145,36 @@ export const MapView: React.FC<MapViewProps> = ({
       </div>
         </>
       )}
+
+      {/* Interactive Game Node Detail Modal with Sector Exploration Objective */}
+      <NodeDetailModal
+        node={selectedNodeForModal}
+        isOpen={isModalOpen}
+        onClose={handleCloseNodeModal}
+        onInitiateExploration={handleInitiateExploration}
+        isExplorationActive={Boolean(
+          selectedNodeForModal && activeExplorationNodeId === selectedNodeForModal.id
+        )}
+        onFastTravel={selectedNodeForModal?.fastTravelAvailable ? handleWarpToLandmark : undefined}
+        onSetWaypoint={(node) => {
+          sound.playClick();
+          setCustomWaypoint({
+            x: node.coords.x,
+            y: node.coords.y,
+            label: node.name
+          });
+          setWarpToast(`Navigation directive pinned to ${node.name}`);
+          setTimeout(() => setWarpToast(null), 3000);
+        }}
+        onLaunchPlay={(node) => {
+          setPlayerCoords({ x: node.coords.x, y: node.coords.y });
+          setActiveZone(node.name);
+          setProgress(prev => ({ ...prev, lastWarpLocation: node.name }));
+          sound.playWarp();
+          setIsModalOpen(false);
+          setActiveTab('prototype');
+        }}
+      />
 
     </div>
   );
