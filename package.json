@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "verify:npc-agent": "node scripts/verify-npc-dialogue-agent.mjs"
+    "verify:npc-agent": "node scripts/verify-npc-dialogue-agent.mjs",
+    "verify:unreal-agent": "node scripts/verify-unreal-developer-agent.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
