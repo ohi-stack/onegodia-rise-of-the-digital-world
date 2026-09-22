@@ -28,6 +28,7 @@ import { MapView } from './views/MapView';
 import { MissionsView } from './views/MissionsView';
 import { InventoryView } from './views/InventoryView';
 import { DigitalAssetEconomyView } from './views/DigitalAssetEconomyView';
+import { AssetsView } from './views/AssetsView';
 import { DevelopersView } from './views/DevelopersView';
 import { CommunityView } from './views/CommunityView';
 import { MediaView } from './views/MediaView';
@@ -188,6 +189,8 @@ export default function App() {
           {activeTab === 'inventory' && (
             <InventoryView progress={progress} setProgress={setProgress} />
           )}
+
+          {activeTab === 'assets' && <AssetsView />}
 
           {activeTab === 'digital-asset-economy' && <DigitalAssetEconomyView />}
 
