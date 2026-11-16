@@ -4,24 +4,21 @@ import {
   Car,
   Check,
   Crosshair,
-  Hospital,
   Map as MapIcon,
   MapPin,
   MessageSquare,
   Navigation,
   Package,
   RotateCcw,
-  TrainFront,
-  Waves,
 } from 'lucide-react';
 import { PlayerProgress } from '../types';
+import { StamfordPlayMap, STAMFORD_PLAY_STOPS, type MapPosition } from '../components/maps/StamfordPlayMap';
 
 interface PlayViewProps {
   progress: PlayerProgress;
   setProgress: React.Dispatch<React.SetStateAction<PlayerProgress>>;
 }
 
-type Position = { x: number; y: number };
 
 type PlayStage =
   | 'spawned'
@@ -29,21 +26,25 @@ type PlayStage =
   | 'driving'
   | 'washington-reached'
   | 'station-reached'
+  | 'south-end-reached'
   | 'harbor-point-reached';
 
-const SPAWN: Position = { x: 15, y: 69 };
-const VEHICLE: Position = { x: 29, y: 62 };
-const WASHINGTON: Position = { x: 47, y: 49 };
-const STATION: Position = { x: 65, y: 38 };
-const HARBOR_POINT: Position = { x: 82, y: 70 };
+const {
+  hospital: SPAWN,
+  staging: VEHICLE,
+  washington: WASHINGTON,
+  station: STATION,
+  southEnd: SOUTH_END,
+  harbor: HARBOR_POINT,
+} = STAMFORD_PLAY_STOPS;
 
-const distance = (a: Position, b: Position) => Math.hypot(a.x - b.x, a.y - b.y);
+const distance = (a: MapPosition, b: MapPosition) => Math.hypot(a.x - b.x, a.y - b.y);
 
 const goldPanel =
   'border border-[#d8b35a]/45 bg-black/72 shadow-[0_18px_45px_rgba(0,0,0,.38),0_0_24px_rgba(216,179,90,.06)] backdrop-blur-md';
 
 export const PlayView: React.FC<PlayViewProps> = ({ progress, setProgress }) => {
-  const [position, setPosition] = useState<Position>(SPAWN);
+  const [position, setPosition] = useState<MapPosition>(SPAWN);
   const [stage, setStage] = useState<PlayStage>('spawned');
   const [isDriving, setIsDriving] = useState(false);
   const [notice, setNotice] = useState(
@@ -54,6 +55,7 @@ export const PlayView: React.FC<PlayViewProps> = ({ progress, setProgress }) => 
   const nearVehicle = distance(position, VEHICLE) < 7;
   const nearWashington = distance(position, WASHINGTON) < 8;
   const nearStation = distance(position, STATION) < 8;
+  const nearSouthEnd = distance(position, SOUTH_END) < 7;
   const nearHarborPoint = distance(position, HARBOR_POINT) < 9;
 
   useEffect(() => {
@@ -122,16 +124,23 @@ export const PlayView: React.FC<PlayViewProps> = ({ progress, setProgress }) => 
 
     if (!isDriving) return;
 
-    if (nearHarborPoint && stage !== 'harbor-point-reached') {
+    if (nearHarborPoint && stage === 'south-end-reached') {
       setStage('harbor-point-reached');
       setNotice('Harbor Point reached. Stamford corridor route test complete.');
       setProgress((current) => ({ ...current, lastWarpLocation: 'Harbor Point, Stamford' }));
       return;
     }
 
-    if (nearStation && !['station-reached', 'harbor-point-reached'].includes(stage)) {
+    if (nearSouthEnd && stage === 'station-reached') {
+      setStage('south-end-reached');
+      setNotice('South End reached. Follow the route to the Harbor Point waterfront.');
+      setProgress((current) => ({ ...current, lastWarpLocation: 'South End, Stamford' }));
+      return;
+    }
+
+    if (nearStation && stage === 'washington-reached') {
       setStage('station-reached');
-      setNotice('Stamford Station reached. Continue south toward Harbor Point.');
+      setNotice('Stamford Station reached. Continue through the South End.');
       setProgress((current) => ({ ...current, lastWarpLocation: 'Stamford Station' }));
       return;
     }
@@ -141,7 +150,7 @@ export const PlayView: React.FC<PlayViewProps> = ({ progress, setProgress }) => 
       setNotice('Washington Boulevard corridor reached. Continue toward Stamford Station.');
       setProgress((current) => ({ ...current, lastWarpLocation: 'Washington Boulevard, Stamford' }));
     }
-  }, [isDriving, nearHarborPoint, nearStation, nearWashington, setProgress, stage]);
+  }, [isDriving, nearHarborPoint, nearSouthEnd, nearStation, nearWashington, setProgress, stage]);
 
   const moveButton = (key: string, active: boolean) => {
     if (active) pressed.current.add(key);
@@ -183,8 +192,10 @@ export const PlayView: React.FC<PlayViewProps> = ({ progress, setProgress }) => 
           : stage === 'washington-reached'
             ? 'Continue along the corridor to Stamford Station.'
             : stage === 'station-reached'
-              ? 'Continue south from Stamford Station toward Harbor Point.'
-              : 'Route complete — Stamford Hospital → Washington Blvd → Stamford Station → Harbor Point.';
+              ? 'Continue south from Stamford Station through the South End.'
+              : stage === 'south-end-reached'
+                ? 'Follow the waterfront approach to Harbor Point.'
+                : 'Route complete — Stamford Hospital → Washington Blvd → Stamford Station → South End → Harbor Point.';
 
   const progressPercent =
     stage === 'spawned'
@@ -197,11 +208,14 @@ export const PlayView: React.FC<PlayViewProps> = ({ progress, setProgress }) => 
             ? 65
             : stage === 'station-reached'
               ? 82
-              : 100;
+              : stage === 'south-end-reached'
+                ? 92
+                : 100;
 
   const reachedVehicle = stage !== 'spawned';
-  const reachedWashington = ['washington-reached', 'station-reached', 'harbor-point-reached'].includes(stage);
-  const reachedStation = ['station-reached', 'harbor-point-reached'].includes(stage);
+  const reachedWashington = ['washington-reached', 'station-reached', 'south-end-reached', 'harbor-point-reached'].includes(stage);
+  const reachedStation = ['station-reached', 'south-end-reached', 'harbor-point-reached'].includes(stage);
+  const reachedSouthEnd = ['south-end-reached', 'harbor-point-reached'].includes(stage);
   const reachedHarbor = stage === 'harbor-point-reached';
 
   const missionSteps = [
@@ -209,6 +223,7 @@ export const PlayView: React.FC<PlayViewProps> = ({ progress, setProgress }) => 
     ['Reach vehicle staging', reachedVehicle],
     ['Drive Washington Boulevard', reachedWashington],
     ['Reach Stamford Station', reachedStation],
+    ['Pass through the South End', reachedSouthEnd],
     ['Finish at Harbor Point', reachedHarbor],
   ] as const;
 
@@ -274,16 +289,9 @@ export const PlayView: React.FC<PlayViewProps> = ({ progress, setProgress }) => 
           </div>
         </div>
 
-        <div className="absolute right-4 top-4 z-40 flex w-[260px] max-w-[calc(100%-2rem)] flex-col items-end gap-3">
+        <div className="absolute right-4 top-4 z-40 hidden w-[260px] max-w-[calc(100%-2rem)] flex-col items-end gap-3 lg:flex">
           <div className={`relative h-44 w-44 overflow-hidden rounded-full p-4 ${goldPanel}`}>
-            <div className="absolute inset-[12px] rounded-full border border-[#d8b35a]/35 bg-[#0a0e16]" />
-            <div className="absolute left-1/2 top-1/2 h-[1px] w-28 -translate-x-1/2 rotate-[18deg] bg-cyan-400/35" />
-            <div className="absolute left-1/2 top-1/2 h-28 w-[1px] -translate-y-1/2 rotate-[18deg] bg-cyan-400/25" />
-            <div className="absolute left-[25%] top-[58%] h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,.9)]" />
-            <div className="absolute left-[48%] top-[43%] h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,.9)]" />
-            <div className="absolute left-[66%] top-[32%] h-2 w-2 rounded-full bg-blue-400" />
-            <div className="absolute left-[78%] top-[63%] h-2 w-2 rounded-full bg-purple-400" />
-            <div className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 text-[#f0d98a]">▲</div>
+            <StamfordPlayMap player={position} />
             <div className="absolute left-1/2 top-1 -translate-x-1/2 text-[9px] text-[#f0d98a]">N</div>
             <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[9px] text-[#f0d98a]">S</div>
             <div className="absolute left-1 top-1/2 -translate-y-1/2 text-[9px] text-[#f0d98a]">W</div>
@@ -291,7 +299,7 @@ export const PlayView: React.FC<PlayViewProps> = ({ progress, setProgress }) => 
           </div>
           <div className={`w-full rounded-xl px-3 py-2 text-right ${goldPanel}`}>
             <div className="text-xs font-bold text-white">STAMFORD DISTRICT</div>
-            <div className="text-[9px] text-slate-400">Browser V1 · Route Simulation</div>
+            <div className="text-[9px] text-slate-400">Browser V1 · Schematic route</div>
           </div>
         </div>
 
@@ -312,57 +320,9 @@ export const PlayView: React.FC<PlayViewProps> = ({ progress, setProgress }) => 
         <section
           tabIndex={0}
           className="absolute inset-x-4 bottom-36 top-[286px] z-10 overflow-hidden rounded-[22px] border border-white/10 bg-[#060a0f]/75 outline-none focus:border-[#d8b35a]/70 sm:inset-x-[10%] sm:bottom-32 sm:top-[190px] lg:inset-x-[18%] lg:top-[170px] xl:right-[250px] xl:left-[220px]"
-          aria-label="Playable Stamford corridor prototype map"
+          aria-label="Playable schematic map of the Stamford corridor via the South End"
         >
-          <div
-            className="absolute inset-0 opacity-55"
-            style={{
-              background:
-                'radial-gradient(circle at 42% 36%, rgba(111,60,255,.42), transparent 14%), radial-gradient(circle at 68% 66%, rgba(34,211,238,.2), transparent 18%), linear-gradient(135deg, rgba(10,20,35,.96), rgba(4,6,10,.98))',
-            }}
-          />
-          <div
-            className="absolute inset-0 opacity-35"
-            style={{
-              backgroundImage:
-                'linear-gradient(rgba(34,211,238,.09) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,.09) 1px, transparent 1px)',
-              backgroundSize: '38px 38px',
-            }}
-          />
-
-          <div className="absolute left-[7%] top-[57%] h-[24%] w-[20%] min-w-[110px] rounded-xl border border-emerald-400/45 bg-emerald-950/35 p-3">
-            <Hospital className="h-5 w-5 text-emerald-300" />
-            <div className="mt-1 text-[10px] font-bold text-emerald-100">STAMFORD HOSPITAL</div>
-            <div className="text-[8px] text-emerald-400">Canonical Player Spawn</div>
-          </div>
-
-          <div className="absolute left-[24%] top-[52%] h-[17%] w-[17%] min-w-[100px] rounded-xl border border-[#d8b35a]/45 bg-[#5a4318]/25 p-3">
-            <Car className="h-5 w-5 text-[#f0d98a]" />
-            <div className="mt-1 text-[10px] font-bold text-[#f0d98a]">VEHICLE STAGING</div>
-            <div className="text-[8px] text-[#d8b35a]">Press F when nearby</div>
-          </div>
-
-          <div className="absolute left-[39%] top-[40%] h-[17%] w-[20%] min-w-[115px] rounded-xl border border-cyan-400/35 bg-cyan-950/20 p-3">
-            <Building2 className="h-5 w-5 text-cyan-300" />
-            <div className="mt-1 text-[10px] font-bold text-cyan-100">WASHINGTON BLVD</div>
-            <div className="text-[8px] text-cyan-500">Corridor checkpoint</div>
-          </div>
-
-          <div className="absolute left-[58%] top-[25%] h-[19%] w-[21%] min-w-[115px] rounded-xl border border-blue-400/40 bg-blue-950/25 p-3">
-            <TrainFront className="h-5 w-5 text-blue-300" />
-            <div className="mt-1 text-[10px] font-bold text-blue-100">STAMFORD STATION</div>
-            <div className="text-[8px] text-blue-500">Transit landmark</div>
-          </div>
-
-          <div className="absolute left-[75%] top-[61%] h-[20%] w-[20%] min-w-[110px] rounded-xl border border-purple-400/40 bg-purple-950/25 p-3">
-            <Waves className="h-5 w-5 text-purple-300" />
-            <div className="mt-1 text-[10px] font-bold text-purple-100">HARBOR POINT</div>
-            <div className="text-[8px] text-purple-400">Route destination</div>
-          </div>
-
-          <div className="absolute left-[20%] top-[60%] h-[5%] w-[32%] -rotate-[20deg] rounded-full border-y border-[#d8b35a]/20 bg-slate-500/25" />
-          <div className="absolute left-[46%] top-[43%] h-[5%] w-[25%] -rotate-[28deg] rounded-full border-y border-[#d8b35a]/20 bg-slate-500/25" />
-          <div className="absolute left-[66%] top-[47%] h-[5%] w-[24%] rotate-[43deg] rounded-full border-y border-[#d8b35a]/20 bg-slate-500/25" />
+          <StamfordPlayMap />
 
           <div
             className={`absolute z-20 -translate-x-1/2 -translate-y-1/2 transition-[left,top] duration-75 ${
@@ -376,7 +336,7 @@ export const PlayView: React.FC<PlayViewProps> = ({ progress, setProgress }) => 
             {!isDriving && <div className="absolute inset-[5px] rounded-full bg-slate-950" />}
           </div>
 
-          <div className="absolute left-3 top-3 rounded-lg border border-[#d8b35a]/30 bg-black/75 px-3 py-2 text-[9px] text-[#f0d98a] backdrop-blur">
+          <div className="absolute right-3 top-3 rounded-lg border border-[#d8b35a]/30 bg-black/75 px-3 py-2 text-[9px] text-[#f0d98a] backdrop-blur">
             <div className="flex items-center gap-1.5 font-bold"><Crosshair className="h-3 w-3" /> LIVE POSITION</div>
             <div className="mt-1 text-slate-400">X {position.x.toFixed(1)} / Y {position.y.toFixed(1)}</div>
             <div className={isDriving ? 'text-[#f0d98a]' : 'text-emerald-300'}>{isDriving ? 'DRIVING' : 'ON FOOT'}</div>
